@@ -1,0 +1,17 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Testing & Type checking caches
+.pytest_cache/
+.mypy_cache/
+
+# Local binary databases & dynamic feeds (do not commit per license)
+data/geoip/*.mmdb
+data/geoip/*.gz
+data/geoip/*.tar.gz
+data/geoip/*.bin
+data/geoip/tor_exit_nodes.txt
+*.mmdb
+*.mmdb.gz
