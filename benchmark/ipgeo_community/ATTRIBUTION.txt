@@ -1,0 +1,21 @@
+ipgeo Community Edition — Attribution
+
+This database is a merged derivative of public and openly-licensed sources.
+When you use or redistribute it, retain these notices:
+
+- Includes DB-IP Lite data (CC BY 4.0), available from https://db-ip.com —
+  "IP Geolocation by DB-IP" (https://db-ip.com). Licensed under the Creative
+  Commons Attribution 4.0 International License:
+  https://creativecommons.org/licenses/by/4.0/
+- ASN data is derived from one or both of two redundant sources: IPtoASN,
+  licensed under Public Domain (PDDL v1.0)
+  (https://opendatacommons.org/licenses/pddl/1.0/) — https://iptoasn.com — and
+  the DB-IP IP to ASN Lite database (CC BY 4.0), https://db-ip.com.
+- The timezone field is derived from curated country and first-level-region
+  tables authored in this project.
+- Community VPN list rows with basis=x4bnet are derived from X4BNet/lists_vpn
+  (MIT, https://github.com/X4BNet/lists_vpn) — see VPN-ATTRIBUTION.txt.
+- Geolocation, ip_type classification, VPN/proxy/datacenter flags, and the
+  merge model are © WhoisXML API / ipgeo, released here under CC BY-SA 4.0.
+
+CAIDA ITDK and WhoisXML commercial fields are NOT included.

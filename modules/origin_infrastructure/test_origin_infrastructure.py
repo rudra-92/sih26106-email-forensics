@@ -1103,6 +1103,523 @@ class TestRealDBIPIntegration(unittest.TestCase):
         self.assertTrue(validate_tor_feed(self.tor_file), "tor_exit_nodes.txt must contain valid IP feed")
 
 
+class TestSecondaryPDDLEnrichment(unittest.TestCase):
+    """Test suite for secondary PDDL geographic & ASN evidence providers (sapics/ip-location-db)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.user_mmdb = Path("benchmark/ip_location_db/user-country.mmdb")
+        cls.server_mmdb = Path("benchmark/ip_location_db/server-country.mmdb")
+        cls.origin_mmdb = Path("benchmark/ip_location_db/origin-asn.mmdb")
+        cls.has_pddl = cls.user_mmdb.is_file() and cls.server_mmdb.is_file() and cls.origin_mmdb.is_file()
+
+    def test_55_pddl_datasets_available(self):
+        """55. Verify secondary PDDL providers query valid IPv4 when datasets are present."""
+        from modules.origin_infrastructure.enrichment import (
+            OriginASNProvider,
+            ServerCountryProvider,
+            UserCountryProvider,
+        )
+
+        u_prov = UserCountryProvider(db_path=str(self.user_mmdb) if self.has_pddl else None, custom_lookup={"49.37.154.164": {"country_code": "IN"}} if not self.has_pddl else None)
+        s_prov = ServerCountryProvider(db_path=str(self.server_mmdb) if self.has_pddl else None, custom_lookup={"49.37.154.164": {"country_code": "IN"}} if not self.has_pddl else None)
+        o_prov = OriginASNProvider(db_path=str(self.origin_mmdb) if self.has_pddl else None, custom_lookup={"49.37.154.164": {"asn": "AS55836", "organization": "Reliance Jio Infocomm Limited"}} if not self.has_pddl else None)
+
+        u_res = u_prov.lookup("49.37.154.164")
+        self.assertEqual(u_res.status, "available")
+        self.assertEqual(u_res.country_code, "IN")
+        self.assertEqual(u_res.trust_state, "enriched")
+        self.assertIn("user-country", u_res.source_dataset)
+        self.assertEqual(u_res.license, "PDDL-1.0")
+
+        s_res = s_prov.lookup("49.37.154.164")
+        self.assertEqual(s_res.status, "available")
+        self.assertEqual(s_res.country_code, "IN")
+        self.assertEqual(s_res.trust_state, "enriched")
+        self.assertIn("server-country", s_res.source_dataset)
+
+        o_res = o_prov.lookup("49.37.154.164")
+        self.assertEqual(o_res.status, "available")
+        self.assertEqual(o_res.asn, "AS55836")
+        self.assertIn("Reliance Jio", str(o_res.organization))
+        self.assertEqual(o_res.trust_state, "enriched")
+
+        u_prov.close()
+        s_prov.close()
+        o_prov.close()
+
+    def test_56_pddl_datasets_unavailable(self):
+        """56. Verify secondary providers gracefully degrade to status='unavailable' when missing."""
+        from modules.origin_infrastructure.enrichment import (
+            OriginASNProvider,
+            ServerCountryProvider,
+            UserCountryProvider,
+        )
+
+        missing_u = UserCountryProvider(db_path="data/geoip/non_existent.mmdb", custom_lookup=None)
+        missing_s = ServerCountryProvider(db_path="data/geoip/non_existent.mmdb", custom_lookup=None)
+        missing_o = OriginASNProvider(db_path="data/geoip/non_existent.mmdb", custom_lookup=None)
+
+        self.assertEqual(missing_u.lookup("8.8.8.8").status, "unavailable")
+        self.assertEqual(missing_u.lookup("8.8.8.8").trust_state, "unknown")
+        self.assertIsNone(missing_u.lookup("8.8.8.8").country_code)
+
+        self.assertEqual(missing_s.lookup("8.8.8.8").status, "unavailable")
+        self.assertEqual(missing_s.lookup("8.8.8.8").trust_state, "unknown")
+
+        self.assertEqual(missing_o.lookup("8.8.8.8").status, "unavailable")
+        self.assertEqual(missing_o.lookup("8.8.8.8").trust_state, "unknown")
+        self.assertIsNone(missing_o.lookup("8.8.8.8").asn)
+
+    def test_57_pddl_ipv4_and_ipv6(self):
+        """57. Verify secondary providers handle both IPv4 and IPv6 lookups."""
+        from modules.origin_infrastructure.enrichment import (
+            OriginASNProvider,
+            ServerCountryProvider,
+            UserCountryProvider,
+        )
+
+        # Explicit test fixtures to test both IPv4 and IPv6
+        fixtures_u = {
+            "8.8.8.8": {"country_code": "US"},
+            "2001:4860:4860::8888": {"country_code": "US"},
+        }
+        fixtures_o = {
+            "8.8.8.8": {"asn": "AS15169", "organization": "Google LLC"},
+            "2001:4860:4860::8888": {"asn": "AS15169", "organization": "Google LLC"},
+        }
+        u_prov = UserCountryProvider(custom_lookup=fixtures_u)
+        s_prov = ServerCountryProvider(custom_lookup=fixtures_u)
+        o_prov = OriginASNProvider(custom_lookup=fixtures_o)
+
+        # IPv4
+        self.assertEqual(u_prov.lookup("8.8.8.8").country_code, "US")
+        self.assertEqual(s_prov.lookup("8.8.8.8").country_code, "US")
+        self.assertEqual(o_prov.lookup("8.8.8.8").asn, "AS15169")
+
+        # IPv6
+        self.assertEqual(u_prov.lookup("2001:4860:4860::8888").country_code, "US")
+        self.assertEqual(s_prov.lookup("2001:4860:4860::8888").country_code, "US")
+        self.assertEqual(o_prov.lookup("2001:4860:4860::8888").asn, "AS15169")
+
+        # Invalid IP
+        self.assertEqual(u_prov.lookup("not-an-ip").status, "invalid_input")
+        self.assertEqual(o_prov.lookup("").status, "invalid_input")
+
+    def test_58_matching_user_and_server_country(self):
+        """58. Verify country_agreement=True, interpretation='country-level evidence is consistent', but does NOT alone imply direct origin."""
+        from modules.origin_infrastructure.enrichment import (
+            CompositeEnrichmentProvider,
+            LocalASNProvider,
+            LocalGeoIPProvider,
+            LocalInfrastructureProvider,
+            OriginASNProvider,
+            ServerCountryProvider,
+            UserCountryProvider,
+        )
+
+        geo = LocalGeoIPProvider(custom_lookup={"49.37.154.164": {"country": "India", "country_code": "IN", "city": "Navi Mumbai"}})
+        asn = LocalASNProvider(custom_lookup={"49.37.154.164": {"asn": "AS55836", "organization": "Reliance Jio Infocomm Limited"}})
+        infra = LocalInfrastructureProvider()
+        u_prov = UserCountryProvider(custom_lookup={"49.37.154.164": {"country_code": "IN"}})
+        s_prov = ServerCountryProvider(custom_lookup={"49.37.154.164": {"country_code": "IN"}})
+        o_prov = OriginASNProvider(custom_lookup={"49.37.154.164": {"asn": "AS55836", "organization": "Reliance Jio Infocomm Limited"}})
+
+        composite = CompositeEnrichmentProvider(
+            geoip_provider=geo,
+            asn_provider=asn,
+            infrastructure_provider=infra,
+            user_country_provider=u_prov,
+            server_country_provider=s_prov,
+            origin_asn_provider=o_prov,
+        )
+
+        # A. Without broader hop context: country agreement alone does NOT declare direct_origin_infrastructure
+        enriched_no_ctx = composite.enrich("49.37.154.164")
+        self.assertIsNotNone(enriched_no_ctx.location_evidence)
+        le_no_ctx = enriched_no_ctx.location_evidence
+        assert le_no_ctx is not None
+        self.assertEqual(le_no_ctx.country_agreement, True)
+        self.assertEqual(le_no_ctx.interpretation, "country-level evidence is consistent")
+        self.assertEqual(le_no_ctx.country_confidence, 0.95)
+        self.assertEqual(le_no_ctx.location_type, "unknown", "Same country alone must NEVER infer direct origin")
+
+        # B. Same country can still contain relays (e.g. hop_sequence_num = 2, role = upstream_relay)
+        relay_ctx = {"role": "upstream_relay", "hop_sequence_num": 2, "trust_state": "observed"}
+        enriched_relay = composite.enrich("49.37.154.164", hop_context=relay_ctx)
+        le_relay = enriched_relay.location_evidence
+        assert le_relay is not None
+        self.assertEqual(le_relay.country_agreement, True)
+        self.assertEqual(le_relay.location_type, "relay_infrastructure", "Same country can still contain relays")
+
+        # C. With broader Module 5 evidence: earliest reliable external peer + verified trust state -> direct_origin_infrastructure
+        origin_ctx = {"role": "earliest_reliable_external_peer", "hop_sequence_num": 1, "trust_state": "verified"}
+        enriched_origin = composite.enrich("49.37.154.164", hop_context=origin_ctx)
+        le_origin = enriched_origin.location_evidence
+        assert le_origin is not None
+        self.assertEqual(le_origin.location_type, "direct_origin_infrastructure")
+
+    def test_59_differing_user_and_server_country(self):
+        """59. Verify country_agreement=False, interpretation='country-level geographic evidence is inconsistent'."""
+        from modules.origin_infrastructure.enrichment import (
+            CompositeEnrichmentProvider,
+            LocalASNProvider,
+            LocalGeoIPProvider,
+            LocalInfrastructureProvider,
+            OriginASNProvider,
+            ServerCountryProvider,
+            UserCountryProvider,
+        )
+
+        # Cross-border relay / roaming IP (user in AU, server in US)
+        ip = "176.23.150.1"
+        geo = LocalGeoIPProvider(custom_lookup={ip: {"country": "Australia", "country_code": "AU", "city": "Sydney"}})
+        asn = LocalASNProvider(custom_lookup={ip: {"asn": "AS40934", "organization": "Fortinet Inc."}})
+        infra = LocalInfrastructureProvider()
+        u_prov = UserCountryProvider(custom_lookup={ip: {"country_code": "AU"}})
+        s_prov = ServerCountryProvider(custom_lookup={ip: {"country_code": "US"}})
+        o_prov = OriginASNProvider(custom_lookup={ip: {"asn": "AS40934", "organization": "Fortinet Inc."}})
+
+        composite = CompositeEnrichmentProvider(
+            geoip_provider=geo,
+            asn_provider=asn,
+            infrastructure_provider=infra,
+            user_country_provider=u_prov,
+            server_country_provider=s_prov,
+            origin_asn_provider=o_prov,
+        )
+
+        # Without broader hop context: country divergence alone does NOT set relay_infrastructure
+        enriched = composite.enrich(ip)
+        self.assertIsNotNone(enriched.location_evidence)
+        le = enriched.location_evidence
+        assert le is not None
+        self.assertEqual(le.country_agreement, False)
+        self.assertEqual(le.interpretation, "country-level geographic evidence is inconsistent")
+        self.assertEqual(le.country_confidence, 0.45)  # Reduced heuristic confidence
+        self.assertEqual(le.location_type, "unknown", "Disagreement alone must not set location_type")
+
+        # With broader hop context (hop 2 upstream relay): different user/server country is corroborating relay evidence
+        relay_ctx = {"role": "upstream_relay", "hop_sequence_num": 2, "trust_state": "observed"}
+        enriched_relay = composite.enrich(ip, hop_context=relay_ctx)
+        le_relay = enriched_relay.location_evidence
+        assert le_relay is not None
+        self.assertEqual(le_relay.location_type, "relay_infrastructure")
+
+    def test_60_asn_agreement_and_disagreement(self):
+        """60. Verify ASN agreement vs disagreement tracking between DB-IP ASN and origin-asn."""
+        from modules.origin_infrastructure.enrichment import (
+            CompositeEnrichmentProvider,
+            LocalASNProvider,
+            OriginASNProvider,
+        )
+
+        # Agreeing case
+        ip1 = "8.8.8.8"
+        asn1 = LocalASNProvider(custom_lookup={ip1: {"asn": "AS15169", "organization": "Google LLC"}})
+        o_prov1 = OriginASNProvider(custom_lookup={ip1: {"asn": "AS15169", "organization": "Google LLC"}})
+        c1 = CompositeEnrichmentProvider(asn_provider=asn1, origin_asn_provider=o_prov1)
+        e1 = c1.enrich(ip1)
+        self.assertEqual(e1.asn.asn, "AS15169")
+        self.assertEqual(e1.location_evidence.origin_asn.get("asn"), "AS15169")  # type: ignore[union-attr]
+
+        # Disagreeing / re-routed case
+        ip2 = "192.0.2.1"
+        asn2 = LocalASNProvider(custom_lookup={ip2: {"asn": "AS64500", "organization": "Old Org"}})
+        o_prov2 = OriginASNProvider(custom_lookup={ip2: {"asn": "AS64501", "organization": "New BGP Route"}})
+        c2 = CompositeEnrichmentProvider(asn_provider=asn2, origin_asn_provider=o_prov2)
+        e2 = c2.enrich(ip2)
+        self.assertEqual(e2.asn.asn, "AS64500")
+        self.assertEqual(e2.location_evidence.origin_asn.get("asn"), "AS64501")  # type: ignore[union-attr]
+        self.assertNotEqual(e2.asn.asn, e2.location_evidence.origin_asn.get("asn"))  # type: ignore[union-attr]
+
+    def test_61_no_city_inference_from_country_datasets(self):
+        """61. Ensure country datasets NEVER infer or populate city/coordinate data, DB-IP city remains infrastructure geolocation."""
+        from modules.origin_infrastructure.enrichment import (
+            CompositeEnrichmentProvider,
+            LocalGeoIPProvider,
+            ServerCountryProvider,
+            UserCountryProvider,
+        )
+
+        geo = LocalGeoIPProvider(custom_lookup={"8.8.8.8": {"country": "United States", "country_code": "US", "city": "Mountain View", "latitude": 37.422, "longitude": -122.085}})
+        u = UserCountryProvider(custom_lookup={"8.8.8.8": {"country_code": "US"}}).lookup("8.8.8.8")
+        s = ServerCountryProvider(custom_lookup={"8.8.8.8": {"country_code": "US"}}).lookup("8.8.8.8")
+
+        # user-country and server-country models must have only country_code, NO city or coords
+        self.assertFalse(hasattr(u, "city"))
+        self.assertFalse(hasattr(u, "latitude"))
+        self.assertFalse(hasattr(s, "city"))
+        self.assertFalse(hasattr(s, "longitude"))
+        self.assertEqual(u.country_code, "US")
+        self.assertEqual(s.country_code, "US")
+
+        # Composite verification: DB-IP city remains the infrastructure geolocation
+        comp = CompositeEnrichmentProvider(geoip_provider=geo, user_country_provider=UserCountryProvider(custom_lookup={"8.8.8.8": {"country_code": "US"}}))
+        e = comp.enrich("8.8.8.8")
+        self.assertEqual(e.geolocation.city, "Mountain View")
+        assert e.location_evidence is not None
+        self.assertEqual(e.location_evidence.dbip_infrastructure_location.get("city"), "Mountain View")
+
+    def test_62_no_physical_attacker_location_claim(self):
+        """62. Verify semantic rule: no physical attacker location claim is produced."""
+        from modules.origin_infrastructure.enrichment import (
+            CompositeEnrichmentProvider,
+            UserCountryProvider,
+        )
+
+        u_prov = UserCountryProvider(custom_lookup={"8.8.8.8": {"country_code": "US"}})
+        comp = CompositeEnrichmentProvider(user_country_provider=u_prov)
+        enriched = comp.enrich("8.8.8.8")
+
+        d = enriched.to_dict()
+        # Ensure no key claims attacker location
+        self.assertNotIn("attacker_location", d)
+        self.assertNotIn("physical_location", d)
+        self.assertIn("location_evidence", d)
+        self.assertEqual(d["location_evidence"]["ip"], "8.8.8.8")
+        self.assertNotIn("attacker", str(d["location_evidence"]).lower())
+
+
+    def test_63_provenance_preservation(self):
+        """63. Verify all contributing offline datasets are preserved in provenance."""
+        from modules.origin_infrastructure.enrichment import (
+            CompositeEnrichmentProvider,
+            LocalASNProvider,
+            LocalGeoIPProvider,
+            OriginASNProvider,
+            ServerCountryProvider,
+            UserCountryProvider,
+        )
+
+        ip = "8.8.8.8"
+        geo = LocalGeoIPProvider(custom_lookup={ip: {"country": "United States", "country_code": "US", "city": "Mountain View"}})
+        asn = LocalASNProvider(custom_lookup={ip: {"asn": "AS15169", "organization": "Google LLC"}})
+        u_prov = UserCountryProvider(custom_lookup={ip: {"country_code": "US"}})
+        s_prov = ServerCountryProvider(custom_lookup={ip: {"country_code": "US"}})
+        o_prov = OriginASNProvider(custom_lookup={ip: {"asn": "AS15169", "organization": "Google LLC"}})
+
+        comp = CompositeEnrichmentProvider(
+            geoip_provider=geo,
+            asn_provider=asn,
+            user_country_provider=u_prov,
+            server_country_provider=s_prov,
+            origin_asn_provider=o_prov,
+        )
+
+        e = comp.enrich(ip)
+        assert e.location_evidence is not None
+        prov = e.location_evidence.provenance
+        self.assertTrue(any("DB-IP" in p for p in prov))
+        self.assertTrue(any("user-country" in p for p in prov))
+        self.assertTrue(any("server-country" in p for p in prov))
+        self.assertTrue(any("origin-asn" in p for p in prov))
+
+    def test_64_dbip_continues_working_when_secondary_unavailable(self):
+        """64. Verify DB-IP and core pipeline continue operating without secondary providers."""
+        from modules.origin_infrastructure.analyzer import OriginInfrastructureAnalyzer
+        from modules.origin_infrastructure.enrichment import (
+            LocalASNProvider,
+            LocalGeoIPProvider,
+            LocalInfrastructureProvider,
+        )
+
+        # Standard analyzer with only DB-IP and Tor providers
+        geo = LocalGeoIPProvider(custom_lookup={"8.8.8.8": {"country": "United States", "country_code": "US", "city": "Mountain View"}})
+        asn = LocalASNProvider(custom_lookup={"8.8.8.8": {"asn": "AS15169", "organization": "Google LLC"}})
+        infra = LocalInfrastructureProvider()
+
+        analyzer = OriginInfrastructureAnalyzer(
+            geoip_provider=geo,
+            asn_provider=asn,
+            infrastructure_provider=infra,
+            user_country_provider=None,
+            server_country_provider=None,
+            origin_asn_provider=None,
+        )
+
+        raw_eml = (
+            "From: sender@example.com\n"
+            "To: recipient@example.com\n"
+            "Subject: Test\n"
+            "Date: Wed, 10 Sep 2026 12:00:00 +0000\n"
+            "Received: from mail.example.com (mail.example.com [8.8.8.8])\n"
+            "    by mx.destination.com with ESMTP id xyz;\n"
+            "    Wed, 10 Sep 2026 12:00:05 +0000\n\n"
+            "Body content\n"
+        )
+        report = analyzer.analyze(raw_eml)
+        self.assertEqual(report.origin_assessment.earliest_reliable_peer, "8.8.8.8")
+        peer = next((p for p in report.enriched_peers if p.ip == "8.8.8.8"), None)
+        self.assertIsNotNone(peer)
+        assert peer is not None
+        self.assertEqual(peer.geolocation.country, "United States")
+        self.assertEqual(peer.asn.asn, "AS15169")
+        # location_evidence is None when secondary providers are not configured
+        self.assertIsNone(peer.location_evidence)
+
+    def test_65_semantic_audit_geographic_invariants(self):
+        """65. Comprehensive audit of PDDL geographic evidence semantic invariants.
+
+        Enforces:
+        1. NEVER infer: user_country == server_country -> direct_origin_infrastructure.
+        2. NEVER infer: user_country == server_country -> no relay/proxy (domestic relays exist).
+        3. user_country == server_country -> country_agreement=True, interpretation='country-level evidence is consistent'.
+        4. user_country != server_country -> country_agreement=False, interpretation='country-level geographic evidence is inconsistent'.
+        5. Neither agreement nor disagreement alone determines:
+           direct_origin_infrastructure, relay_infrastructure, provider_infrastructure, anonymized_infrastructure.
+        6. Origin location type determined ONLY using broader Module 5 evidence:
+           hop position, trust state, temporal consistency, infrastructure classification,
+           ASN, authentication context, country evidence, and cross-case evidence.
+        7. Numeric confidence values are explicitly non-calibrated heuristic consensus metrics, NOT probabilities.
+        8. Country evidence never establishes physical attacker location; DB-IP city remains infrastructure geolocation.
+        """
+        from modules.origin_infrastructure.enrichment import (
+            CompositeEnrichmentProvider,
+            LocalASNProvider,
+            LocalGeoIPProvider,
+            LocalInfrastructureProvider,
+            OriginASNProvider,
+            ServerCountryProvider,
+            UserCountryProvider,
+        )
+
+        ip_same = "49.37.154.164"  # Same country: user=IN, server=IN
+        ip_diff = "176.23.150.1"   # Diff country: user=AU, server=US
+
+        geo = LocalGeoIPProvider(custom_lookup={
+            ip_same: {"country": "India", "country_code": "IN", "city": "Navi Mumbai", "latitude": 19.033, "longitude": 73.029},
+            ip_diff: {"country": "Australia", "country_code": "AU", "city": "Sydney", "latitude": -33.868, "longitude": 151.209},
+        })
+        asn = LocalASNProvider(custom_lookup={
+            ip_same: {"asn": "AS55836", "organization": "Reliance Jio Infocomm Limited"},
+            ip_diff: {"asn": "AS40934", "organization": "Fortinet Inc."},
+        })
+        infra = LocalInfrastructureProvider()
+        u_prov = UserCountryProvider(custom_lookup={
+            ip_same: {"country_code": "IN"},
+            ip_diff: {"country_code": "AU"},
+        })
+        s_prov = ServerCountryProvider(custom_lookup={
+            ip_same: {"country_code": "IN"},
+            ip_diff: {"country_code": "US"},
+        })
+        o_prov = OriginASNProvider(custom_lookup={
+            ip_same: {"asn": "AS55836", "organization": "Reliance Jio Infocomm Limited"},
+            ip_diff: {"asn": "AS40934", "organization": "Fortinet Inc."},
+        })
+
+        composite = CompositeEnrichmentProvider(
+            geoip_provider=geo,
+            asn_provider=asn,
+            infrastructure_provider=infra,
+            user_country_provider=u_prov,
+            server_country_provider=s_prov,
+            origin_asn_provider=o_prov,
+        )
+
+        # Invariant 1 & 5: user_country == server_country alone does NOT determine direct_origin_infrastructure
+        e_same_no_ctx = composite.enrich(ip_same)
+        assert e_same_no_ctx.location_evidence is not None
+        le_s1 = e_same_no_ctx.location_evidence
+        self.assertEqual(le_s1.country_agreement, True)
+        self.assertEqual(le_s1.interpretation, "country-level evidence is consistent")
+        self.assertNotEqual(le_s1.location_type, "direct_origin_infrastructure")
+        self.assertEqual(le_s1.location_type, "unknown")
+
+        # Invariant 2 & 6: user_country == server_country can still contain relays (domestic relay)
+        domestic_relay_ctx = {
+            "role": "upstream_relay",
+            "hop_sequence_num": 2,
+            "trust_state": "observed",
+            "temporal_consistent": True,
+            "temporal_delay_anomaly": False,
+            "auth_aligned": False,
+            "is_recurring": False,
+        }
+        e_same_relay = composite.enrich(ip_same, hop_context=domestic_relay_ctx)
+        assert e_same_relay.location_evidence is not None
+        le_s2 = e_same_relay.location_evidence
+        self.assertEqual(le_s2.country_agreement, True)
+        self.assertEqual(le_s2.location_type, "relay_infrastructure")
+
+        # Invariant 4 & 5: user_country != server_country alone does NOT determine relay_infrastructure
+        e_diff_no_ctx = composite.enrich(ip_diff)
+        assert e_diff_no_ctx.location_evidence is not None
+        le_d1 = e_diff_no_ctx.location_evidence
+        self.assertEqual(le_d1.country_agreement, False)
+        self.assertEqual(le_d1.interpretation, "country-level geographic evidence is inconsistent")
+        self.assertNotEqual(le_d1.location_type, "relay_infrastructure")
+        self.assertEqual(le_d1.location_type, "unknown")
+
+        # Invariant 6: Different user/server country corroborates relay when hop context indicates relay
+        cross_border_relay_ctx = {
+            "role": "upstream_relay",
+            "hop_sequence_num": 3,
+            "trust_state": "observed",
+            "temporal_consistent": True,
+            "temporal_delay_anomaly": False,
+            "auth_aligned": False,
+            "is_recurring": False,
+        }
+        e_diff_relay = composite.enrich(ip_diff, hop_context=cross_border_relay_ctx)
+        assert e_diff_relay.location_evidence is not None
+        le_d2 = e_diff_relay.location_evidence
+        self.assertEqual(le_d2.country_agreement, False)
+        self.assertEqual(le_d2.location_type, "relay_infrastructure")
+
+        # Invariant 6: Broader evidence establishes direct_origin_infrastructure
+        origin_ctx = {
+            "role": "earliest_reliable_external_peer",
+            "hop_sequence_num": 1,
+            "trust_state": "verified",
+            "temporal_consistent": True,
+            "temporal_delay_anomaly": False,
+            "auth_aligned": True,
+            "is_recurring": False,
+        }
+        e_origin = composite.enrich(ip_same, hop_context=origin_ctx)
+        assert e_origin.location_evidence is not None
+        le_orig = e_origin.location_evidence
+        self.assertEqual(le_orig.location_type, "direct_origin_infrastructure")
+
+        # Invariant 6: Cross-case evidence establishes campaign_infrastructure
+        campaign_ctx = {
+            "role": "earliest_reliable_external_peer",
+            "hop_sequence_num": 1,
+            "trust_state": "verified",
+            "temporal_consistent": True,
+            "temporal_delay_anomaly": False,
+            "auth_aligned": True,
+            "is_recurring": True,
+        }
+        e_campaign = composite.enrich(ip_same, hop_context=campaign_ctx)
+        assert e_campaign.location_evidence is not None
+        self.assertEqual(e_campaign.location_evidence.location_type, "campaign_infrastructure")
+
+        # Invariant 7: Numeric confidence values are heuristic consensus metrics, NOT probabilities
+        self.assertEqual(le_s1.country_confidence, 0.95)
+        self.assertEqual(le_s1.confidence_metric, "heuristic_non_calibrated_consensus")
+        self.assertEqual(le_d1.country_confidence, 0.45)
+        self.assertEqual(le_d1.confidence_metric, "heuristic_non_calibrated_consensus")
+        dict_rep = le_s1.to_dict()
+        self.assertEqual(dict_rep["confidence_metric"], "heuristic_non_calibrated_consensus")
+        self.assertNotIn("probability", dict_rep)
+
+        # Invariant 8: Country evidence NEVER establishes physical attacker location
+        dict_s1 = le_s1.to_dict()
+        self.assertNotIn("attacker_location", dict_s1)
+        self.assertNotIn("physical_location", dict_s1)
+        self.assertNotIn("attacker_ip", dict_s1)
+        self.assertIn("NOT human attacker physical location", dict_s1["dbip_infrastructure_location"]["semantic_note"])
+
+        # Invariant 8: DB-IP city remains infrastructure geolocation, never overwritten by country data
+        self.assertIn("Navi Mumbai", str(e_same_no_ctx.geolocation.city))
+        self.assertIn("Navi Mumbai", str(le_s1.dbip_infrastructure_location.get("city")))
+        self.assertFalse(hasattr(u_prov.lookup(ip_same), "city"))
+        self.assertFalse(hasattr(s_prov.lookup(ip_same), "city"))
+
+
 if __name__ == "__main__":
     unittest.main()
 

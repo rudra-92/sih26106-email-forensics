@@ -146,6 +146,38 @@ Module 5 supports an optional local feed from the Tor Project's free bulk exit l
 - **Offline Guardrail**: Normal email analysis **never** makes live network calls to Tor or external services.
 - **Contextual Semantics**: `tor_exit_indicator = true` is transport context only; it is **never** used alone to infer maliciousness.
 
+### Secondary Real Datasets: PDDL Multi-Source Geographic & Routing Evidence
+Module 5 supports optional, secondary offline datasets from `sapics/ip-location-db` under the Public Domain Dedication and License (**PDDL-1.0**):
+- **`user-country.mmdb`**: Prioritizes likely end-user network endpoint country.
+- **`server-country.mmdb`**: Prioritizes physical server/relay infrastructure country.
+- **`origin-asn.mmdb`**: Autonomous System Number and BGP origin routing authority.
+
+#### Mandatory Semantic Invariants (Audit Enforced):
+1. **NEVER infer `user_country == server_country` → `direct_origin_infrastructure`**:
+   Agreement between user and server country indicates country-level consistency (`country_agreement = true`, `interpretation = "country-level evidence is consistent"`). It does **NEVER** imply direct origin on its own.
+2. **NEVER infer `user_country == server_country` → no relay/proxy**:
+   Email relays, enterprise gateways, and proxies frequently operate within the exact same country (domestic relays).
+3. **When `user_country != server_country`**:
+   Record `country_agreement = false` and `interpretation = "country-level geographic evidence is inconsistent"`.
+4. **Neither agreement nor disagreement alone may determine**:
+   `direct_origin_infrastructure`, `relay_infrastructure`, `provider_infrastructure`, or `anonymized_infrastructure`. Without broader hop context, location type defaults to `"unknown"`.
+5. **Origin location type determination requires broader Module 5 evidence**:
+   Location type is synthesized strictly by combining:
+   - Hop position (`hop_sequence_num`: hop 1 earliest peer vs intermediate upstream relays)
+   - Trust state (`verified`, `observed`, `trusted_configured`)
+   - Temporal consistency (chronology and delay anomalies)
+   - Infrastructure classification (hosting, cloud, gateway, tor, vpn)
+   - ASN (carrier, transit, cloud BGP origin)
+   - Authentication context (SPF, DKIM, DMARC, ARC alignment)
+   - Country evidence (agreement/disagreement corroboration)
+   - Cross-case evidence (recurring campaign infrastructure across historical cases)
+6. **Confidence values are heuristic consensus metrics, NOT probabilities**:
+   Numeric confidence values such as `0.95` (multi-source database consensus) and `0.45` (divergent country evidence) are explicitly non-calibrated heuristic metrics (`confidence_metric = "heuristic_non_calibrated_consensus"`), never statistical probabilities.
+7. **No physical attacker location claim**:
+   Country and city evidence reflect observed infrastructure routing locations only, never the human attacker's physical location.
+8. **DB-IP city remains infrastructure geolocation**:
+   Secondary PDDL datasets provide only country-level resolution. City and coordinates are anchored strictly in DB-IP City Lite and are never inferred or fabricated.
+
 ### Directory Layout & Configuration
 Place local data files in `data/geoip/` (or any custom directory):
 ```text
@@ -153,7 +185,10 @@ data/geoip/
 ├── dbip-city-lite.mmdb       # City geolocation (DB-IP Lite)
 ├── dbip-asn-lite.mmdb        # Autonomous System Numbers (DB-IP Lite)
 ├── dbip-country-lite.mmdb    # (Optional) Country-only database
-└── tor_exit_nodes.txt        # (Optional) Tor Project bulk exit list
+├── tor_exit_nodes.txt        # (Optional) Tor Project bulk exit list
+├── user-country.mmdb         # (Optional) PDDL user-country
+├── server-country.mmdb       # (Optional) PDDL server-country
+└── origin-asn.mmdb           # (Optional) PDDL origin-asn
 ```
 
 Configure paths via environment variables or constructor arguments:
@@ -163,9 +198,9 @@ export GEOIP_CITY_DB="data/geoip/dbip-city-lite.mmdb"
 export GEOIP_COUNTRY_DB="data/geoip/dbip-country-lite.mmdb"
 export GEOIP_ASN_DB="data/geoip/dbip-asn-lite.mmdb"
 export TOR_EXIT_LIST_PATH="data/geoip/tor_exit_nodes.txt"
-
-# Backward-compatibility variables also supported:
-# SIH_GEOIP_DB_PATH, SIH_ASN_DB_PATH
+export USER_COUNTRY_DB="data/geoip/user-country.mmdb"
+export SERVER_COUNTRY_DB="data/geoip/server-country.mmdb"
+export ORIGIN_ASN_DB="data/geoip/origin-asn.mmdb"
 ```
 
 If local database files are missing:

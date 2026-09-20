@@ -1,0 +1,48 @@
+{
+  "name": "ipgeo Community Edition",
+  "version": "2026-09-14",
+  "license": "CC BY-SA 4.0",
+  "records": 16482321,
+  "vpn_list_rows": 11564,
+  "columns": [
+    "network",
+    "country_code",
+    "country_name",
+    "region",
+    "city",
+    "postal_code",
+    "latitude",
+    "longitude",
+    "timezone",
+    "asn",
+    "as_org",
+    "is_vpn",
+    "is_proxy",
+    "is_datacenter",
+    "ip_type"
+  ],
+  "flag_provenance": "native-asn-recomputed",
+  "commercial_flags_dropped": 119,
+  "granularity": "network-block (no IPv4 /32, no IPv6 /128)",
+  "single_address_rows_dropped": 254942,
+  "excluded_sources": [
+    "caida_itdk",
+    "ip2location_lite"
+  ],
+  "source_csv_sha256": "be621e43ca5cc077423634db74f6bacb9c576c0a68468e1e8a84bb0674173ec7",
+  "files": {
+    "ipgeo-community.mmdb": {
+      "bytes": 183177267,
+      "sha256": "70e61c90865de7bcd39896e1a32f0406e3cc3dc33871247432ddb911e556d2b7"
+    },
+    "ipgeo-community.csv": {
+      "bytes": 1903235462,
+      "sha256": "265a6114bee4fd0c438faf1d297404f986eca082baf920dba6dda42197d06071"
+    },
+    "community-vpn-list.csv": {
+      "bytes": 302632,
+      "sha256": "2f1b500c17e2b078dd416932b44e70f4d2827b4f4154e7573d083f8faea64b87"
+    }
+  },
+  "timezone_provenance": "curated-region-table"
+}

@@ -51,6 +51,9 @@ class OriginInfrastructureAnalyzer:
         geoip_provider: Optional[BaseGeoIPProvider] = None,
         asn_provider: Optional[BaseASNProvider] = None,
         infrastructure_provider: Optional[BaseInfrastructureProvider] = None,
+        user_country_provider: Optional[Any] = None,
+        server_country_provider: Optional[Any] = None,
+        origin_asn_provider: Optional[Any] = None,
         historical_cases: Optional[List[Dict[str, Any]]] = None,
         trusted_gateways: Optional[Union[List[str], Set[str]]] = None,
         max_heuristic_confidence: float = 0.94,
@@ -72,6 +75,9 @@ class OriginInfrastructureAnalyzer:
             geoip_provider=g_prov,
             asn_provider=a_prov,
             infrastructure_provider=i_prov,
+            user_country_provider=user_country_provider,
+            server_country_provider=server_country_provider,
+            origin_asn_provider=origin_asn_provider,
         )
 
         self.correlator = CrossCaseCorrelator(historical_cases=historical_cases)
@@ -156,7 +162,21 @@ class OriginInfrastructureAnalyzer:
                 observed_ips_to_enrich.append(hop.source_ip)
 
         for ip in observed_ips_to_enrich:
-            enriched_peers.append(self.enrichment.enrich(ip))
+            matched_cand = next((c for c in candidates if c.ip == ip), None)
+            matched_hop = next((h for h in reconstructed_hops if h.source_ip == ip), None)
+            hop_seq = matched_hop.hop_sequence_num if matched_hop else (matched_cand.hop_sequence_num if matched_cand else None)
+            delay_anomaly = (temporal_result.abnormal_delays > 0) if temporal_result else False
+
+            hop_ctx = {
+                "role": matched_cand.role if matched_cand else ("upstream_relay" if matched_hop and matched_hop.hop_sequence_num > 1 else None),
+                "hop_sequence_num": hop_seq,
+                "trust_state": matched_cand.trust_state if matched_cand else (matched_hop.trust_state if matched_hop else "unknown"),
+                "temporal_consistent": temporal_result.chronology_consistent if temporal_result else True,
+                "temporal_delay_anomaly": delay_anomaly,
+                "auth_aligned": auth_ev.spf == "pass" if auth_ev else False,
+                "is_recurring": False,
+            }
+            enriched_peers.append(self.enrichment.enrich(ip, hop_context=hop_ctx))
 
         # 7. Cross-Case Temporal Correlation
         current_ts = reconstructed_hops[0].timestamp_raw if reconstructed_hops else str(date_header)
@@ -170,6 +190,25 @@ class OriginInfrastructureAnalyzer:
         )
         obs_counter += len(corr_obs)
         all_observations.extend(corr_obs)
+
+        # Incorporate cross-case evidence: if an IP recurs across cases, update campaign_infrastructure
+        recurring_ips = {m.get("matched_value") for m in corr_matches if m.get("match_type") == "ip" and m.get("matched_value")}
+        if recurring_ips:
+            for idx, peer in enumerate(enriched_peers):
+                if peer.ip in recurring_ips and peer.location_evidence:
+                    rc_cand = next((c for c in candidates if c.ip == peer.ip), None)
+                    rc_hop = next((h for h in reconstructed_hops if h.source_ip == peer.ip), None)
+                    rc_seq = rc_hop.hop_sequence_num if rc_hop else (rc_cand.hop_sequence_num if rc_cand else None)
+                    updated_ctx = {
+                        "role": rc_cand.role if rc_cand else ("upstream_relay" if rc_hop and rc_hop.hop_sequence_num > 1 else None),
+                        "hop_sequence_num": rc_seq,
+                        "trust_state": rc_cand.trust_state if rc_cand else (rc_hop.trust_state if rc_hop else "unknown"),
+                        "temporal_consistent": temporal_result.chronology_consistent if temporal_result else True,
+                        "temporal_delay_anomaly": (temporal_result.abnormal_delays > 0) if temporal_result else False,
+                        "auth_aligned": auth_ev.spf == "pass" if auth_ev else False,
+                        "is_recurring": True,
+                    }
+                    enriched_peers[idx] = self.enrichment.enrich(peer.ip, hop_context=updated_ctx)
 
         # 8. Origin Hypothesis Generation
         spf_pass = auth_ev.spf == "pass" if auth_ev else False

@@ -182,22 +182,111 @@ class InfrastructureData:
 
 
 @dataclass(frozen=True)
+class UserCountryData:
+    """Country associated with likely end-user/network endpoint."""
+    status: str = "unavailable"  # 'available', 'unavailable', 'not_found', 'invalid_input'
+    country_code: Optional[str] = None
+    trust_state: str = "unknown"  # 'enriched', 'unknown'
+    source_dataset: str = "sapics/ip-location-db (user-country)"
+    license: str = "PDDL-1.0"
+    lookup_timestamp: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class ServerCountryData:
+    """Country associated with server/relay infrastructure."""
+    status: str = "unavailable"  # 'available', 'unavailable', 'not_found', 'invalid_input'
+    country_code: Optional[str] = None
+    trust_state: str = "unknown"  # 'enriched', 'unknown'
+    source_dataset: str = "sapics/ip-location-db (server-country)"
+    license: str = "PDDL-1.0"
+    lookup_timestamp: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class OriginAsnData:
+    """Autonomous System Number from global BGP routing tables."""
+    status: str = "unavailable"  # 'available', 'unavailable', 'not_found', 'invalid_input'
+    asn: Optional[str] = None
+    organization: Optional[str] = None
+    trust_state: str = "unknown"  # 'enriched', 'unknown'
+    source_dataset: str = "sapics/ip-location-db (origin-asn)"
+    license: str = "PDDL-1.0"
+    lookup_timestamp: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class LocationEvidence:
+    """Multi-source geographic & infrastructure evidence aggregation.
+
+    CRITICAL SEMANTIC PRINCIPLES:
+    1. Aggregates observable evidence regarding network endpoint vs server/relay infrastructure.
+       NEVER establishes physical human or attacker location.
+    2. Country agreement or disagreement alone does NOT determine infrastructure type.
+       Same country can contain relays/proxies; cross-border routes can be benign anycast.
+    3. country_confidence is an explicitly bounded, heuristic, non-calibrated consensus score
+       reflecting database agreement, NOT a statistical probability.
+    4. Origin location type is synthesized ONLY using broader Module 5 evidence (hop position,
+       trust state, temporal delay, infrastructure classification, ASN, and authentication).
+    """
+    ip: str
+    dbip_infrastructure_location: Dict[str, Any] = field(default_factory=dict)
+    user_country: Dict[str, Any] = field(default_factory=dict)
+    server_country: Dict[str, Any] = field(default_factory=dict)
+    origin_asn: Dict[str, Any] = field(default_factory=dict)
+    country_agreement: Optional[bool] = None
+    interpretation: str = "insufficient_country_evidence"
+    country_confidence: float = 0.0  # Bounded heuristic consensus score (0.0 - 0.95), NOT a probability
+    confidence_metric: str = "heuristic_non_calibrated_consensus"  # Explicitly documents non-probabilistic metric
+    location_type: str = "unknown"  # 'direct_origin_infrastructure', 'relay_infrastructure', 'provider_infrastructure', 'anonymized_infrastructure', 'campaign_infrastructure', 'unknown'
+    provenance: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "ip": self.ip,
+            "dbip_infrastructure_location": self.dbip_infrastructure_location,
+            "user_country": self.user_country,
+            "server_country": self.server_country,
+            "origin_asn": self.origin_asn,
+            "country_agreement": self.country_agreement,
+            "interpretation": self.interpretation,
+            "country_confidence": round(self.country_confidence, 4),
+            "confidence_metric": self.confidence_metric,
+            "location_type": self.location_type,
+            "provenance": list(self.provenance),
+        }
+
+
+@dataclass(frozen=True)
 class EnrichedInfrastructure:
     """Composite enrichment bundle for an observed IP address."""
     ip: str
     geolocation: GeoLocationData
     asn: AsnData
     infrastructure: InfrastructureData
+    location_evidence: Optional[LocationEvidence] = None
 
     def to_dict(self) -> Dict[str, Any]:
         geo_dict = self.geolocation.to_dict()
-        return {
+        res = {
             "ip": self.ip,
             "geolocation": geo_dict,
             "observed_infrastructure_geolocation": geo_dict,
             "asn": self.asn.to_dict(),
             "infrastructure": self.infrastructure.to_dict(),
         }
+        if self.location_evidence:
+            res["location_evidence"] = self.location_evidence.to_dict()
+        return res
 
 
 @dataclass(frozen=True)
