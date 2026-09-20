@@ -1,0 +1,3 @@
+# SIH26106 Email Forensics Platform - Minimal Runtime Dependencies
+# Offline-first local MMDB reader for Module 5 (Origin & Infrastructure Reconstruction)
+maxminddb==3.2.0
