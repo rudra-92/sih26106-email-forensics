@@ -1,0 +1,756 @@
+{
+  "model1d_metrics": {
+    "name": "Model 1D (Word+Char LR)",
+    "accuracy": 0.9918,
+    "macro_precision": 0.9887,
+    "macro_recall": 0.9888,
+    "macro_f1": 0.9888,
+    "weighted_f1": 0.9918,
+    "per_class": {
+      "fraud_related": {
+        "precision": 1.0,
+        "recall": 0.9878,
+        "f1": 0.9939,
+        "support": 493
+      },
+      "legitimate": {
+        "precision": 0.9918,
+        "recall": 0.9959,
+        "f1": 0.9939,
+        "support": 976
+      },
+      "phishing": {
+        "precision": 0.9744,
+        "recall": 0.9828,
+        "f1": 0.9785,
+        "support": 232
+      }
+    },
+    "confusion_matrix": [
+      [
+        487,
+        4,
+        2
+      ],
+      [
+        0,
+        972,
+        4
+      ],
+      [
+        0,
+        4,
+        228
+      ]
+    ]
+  },
+  "model3_metrics": {
+    "name": "Model 3 (XGBoost Forensic Fusion)",
+    "accuracy": 0.9953,
+    "macro_precision": 0.9919,
+    "macro_recall": 0.9956,
+    "macro_f1": 0.9937,
+    "weighted_f1": 0.9953,
+    "per_class": {
+      "fraud_related": {
+        "precision": 1.0,
+        "recall": 0.9899,
+        "f1": 0.9949,
+        "support": 493
+      },
+      "legitimate": {
+        "precision": 0.9969,
+        "recall": 0.9969,
+        "f1": 0.9969,
+        "support": 976
+      },
+      "phishing": {
+        "precision": 0.9789,
+        "recall": 1.0,
+        "f1": 0.9893,
+        "support": 232
+      }
+    },
+    "confusion_matrix": [
+      [
+        488,
+        3,
+        2
+      ],
+      [
+        0,
+        973,
+        3
+      ],
+      [
+        0,
+        0,
+        232
+      ]
+    ]
+  },
+  "campaign_aware_evaluation": {
+    "Novel Templates (Similarity < 0.80)": {
+      "sample_count": 1396,
+      "model1d_accuracy": 0.9907,
+      "model3_accuracy": 0.995,
+      "accuracy_delta": 0.0043,
+      "model1d_macro_f1": 0.9862,
+      "model3_macro_f1": 0.9926,
+      "f1_delta": 0.0064
+    },
+    "Template-Matching / Near-Duplicates (Similarity >= 0.80)": {
+      "sample_count": 305,
+      "model1d_accuracy": 0.9967,
+      "model3_accuracy": 0.9967,
+      "accuracy_delta": 0.0,
+      "model1d_macro_f1": 0.9941,
+      "model3_macro_f1": 0.9941,
+      "f1_delta": 0.0
+    },
+    "Nigerian Fraud Novel (Sim < 0.80)": {
+      "sample_count": 301,
+      "model1d_accuracy": 0.9801,
+      "model3_accuracy": 0.9834,
+      "accuracy_delta": 0.0033,
+      "model1d_macro_f1": 0.33,
+      "model3_macro_f1": 0.3305,
+      "f1_delta": 0.0006
+    },
+    "Nigerian Fraud Memorized (Sim >= 0.80)": {
+      "sample_count": 192,
+      "model1d_accuracy": 1.0,
+      "model3_accuracy": 1.0,
+      "accuracy_delta": 0.0,
+      "model1d_macro_f1": 1.0,
+      "model3_macro_f1": 1.0,
+      "f1_delta": 0.0
+    },
+    "Phishing Novel (Sim < 0.80)": {
+      "sample_count": 177,
+      "model1d_accuracy": 0.9774,
+      "model3_accuracy": 1.0,
+      "accuracy_delta": 0.0226,
+      "model1d_macro_f1": 0.4943,
+      "model3_macro_f1": 1.0,
+      "f1_delta": 0.5057
+    },
+    "Phishing Memorized (Sim >= 0.80)": {
+      "sample_count": 55,
+      "model1d_accuracy": 1.0,
+      "model3_accuracy": 1.0,
+      "accuracy_delta": 0.0,
+      "model1d_macro_f1": 1.0,
+      "model3_macro_f1": 1.0,
+      "f1_delta": 0.0
+    }
+  },
+  "xgboost_feature_importance": [
+    {
+      "rank": 1,
+      "feature": "nlp_prob_fraud",
+      "gain": 35.0375,
+      "weight": 1178,
+      "cover": 171.48
+    },
+    {
+      "rank": 2,
+      "feature": "nlp_prob_legitimate",
+      "gain": 34.1019,
+      "weight": 1119,
+      "cover": 196.84
+    },
+    {
+      "rank": 3,
+      "feature": "nlp_prob_phishing",
+      "gain": 32.1618,
+      "weight": 1016,
+      "cover": 143.79
+    },
+    {
+      "rank": 4,
+      "feature": "financial_term_count",
+      "gain": 23.287,
+      "weight": 232,
+      "cover": 127.53
+    },
+    {
+      "rank": 5,
+      "feature": "urgent_request_present",
+      "gain": 9.0633,
+      "weight": 1,
+      "cover": 285.48
+    },
+    {
+      "rank": 6,
+      "feature": "executive_style_display_name",
+      "gain": 4.5084,
+      "weight": 7,
+      "cover": 422.89
+    },
+    {
+      "rank": 7,
+      "feature": "https_count",
+      "gain": 4.2769,
+      "weight": 3,
+      "cover": 421.24
+    },
+    {
+      "rank": 8,
+      "feature": "currency_symbol_count",
+      "gain": 3.7036,
+      "weight": 396,
+      "cover": 91.76
+    },
+    {
+      "rank": 9,
+      "feature": "bank_change_request_present",
+      "gain": 3.0314,
+      "weight": 2,
+      "cover": 293.37
+    },
+    {
+      "rank": 10,
+      "feature": "credential_term_count",
+      "gain": 2.8398,
+      "weight": 346,
+      "cover": 30.55
+    },
+    {
+      "rank": 11,
+      "feature": "financial_request_present",
+      "gain": 1.5891,
+      "weight": 27,
+      "cover": 70.45
+    },
+    {
+      "rank": 12,
+      "feature": "word_count",
+      "gain": 0.9603,
+      "weight": 492,
+      "cover": 19.08
+    },
+    {
+      "rank": 13,
+      "feature": "account_action_term_count",
+      "gain": 0.958,
+      "weight": 64,
+      "cover": 62.56
+    },
+    {
+      "rank": 14,
+      "feature": "http_count",
+      "gain": 0.8512,
+      "weight": 82,
+      "cover": 46.48
+    },
+    {
+      "rank": 15,
+      "feature": "url_count",
+      "gain": 0.8021,
+      "weight": 36,
+      "cover": 15.02
+    },
+    {
+      "rank": 16,
+      "feature": "special_character_ratio",
+      "gain": 0.7901,
+      "weight": 1119,
+      "cover": 30.13
+    },
+    {
+      "rank": 17,
+      "feature": "secrecy_request_present",
+      "gain": 0.6858,
+      "weight": 32,
+      "cover": 170.69
+    },
+    {
+      "rank": 18,
+      "feature": "uppercase_ratio",
+      "gain": 0.6801,
+      "weight": 1087,
+      "cover": 79.39
+    },
+    {
+      "rank": 19,
+      "feature": "question_count",
+      "gain": 0.6386,
+      "weight": 227,
+      "cover": 48.73
+    },
+    {
+      "rank": 20,
+      "feature": "has_ip_as_hostname",
+      "gain": 0.596,
+      "weight": 11,
+      "cover": 729.86
+    },
+    {
+      "rank": 21,
+      "feature": "max_path_length",
+      "gain": 0.5949,
+      "weight": 105,
+      "cover": 21.62
+    },
+    {
+      "rank": 22,
+      "feature": "digit_ratio",
+      "gain": 0.5524,
+      "weight": 718,
+      "cover": 16.88
+    },
+    {
+      "rank": 23,
+      "feature": "ip_based_url_count",
+      "gain": 0.5408,
+      "weight": 52,
+      "cover": 947.5
+    },
+    {
+      "rank": 24,
+      "feature": "sentence_count",
+      "gain": 0.529,
+      "weight": 503,
+      "cover": 13.65
+    },
+    {
+      "rank": 25,
+      "feature": "urgency_term_count",
+      "gain": 0.4959,
+      "weight": 173,
+      "cover": 11.18
+    }
+  ],
+  "shap_global_importance": [
+    {
+      "rank": 1,
+      "feature": "nlp_prob_legitimate",
+      "mean_abs_shap": 1.589703,
+      "class_contributions": {
+        "fraud_related": 0.710295,
+        "legitimate": 3.199399,
+        "phishing": 0.859422
+      }
+    },
+    {
+      "rank": 2,
+      "feature": "nlp_prob_fraud",
+      "mean_abs_shap": 1.510081,
+      "class_contributions": {
+        "fraud_related": 3.093228,
+        "legitimate": 0.932151,
+        "phishing": 0.504861
+      }
+    },
+    {
+      "rank": 3,
+      "feature": "nlp_prob_phishing",
+      "mean_abs_shap": 1.340022,
+      "class_contributions": {
+        "fraud_related": 0.40256,
+        "legitimate": 0.505026,
+        "phishing": 3.112481
+      }
+    },
+    {
+      "rank": 4,
+      "feature": "special_character_ratio",
+      "mean_abs_shap": 0.190263,
+      "class_contributions": {
+        "fraud_related": 0.231515,
+        "legitimate": 0.213603,
+        "phishing": 0.125671
+      }
+    },
+    {
+      "rank": 5,
+      "feature": "uppercase_ratio",
+      "mean_abs_shap": 0.165941,
+      "class_contributions": {
+        "fraud_related": 0.118919,
+        "legitimate": 0.221304,
+        "phishing": 0.157599
+      }
+    },
+    {
+      "rank": 6,
+      "feature": "body_length",
+      "mean_abs_shap": 0.113537,
+      "class_contributions": {
+        "fraud_related": 0.09331,
+        "legitimate": 0.069716,
+        "phishing": 0.177585
+      }
+    },
+    {
+      "rank": 7,
+      "feature": "currency_symbol_count",
+      "mean_abs_shap": 0.10337,
+      "class_contributions": {
+        "fraud_related": 0.159486,
+        "legitimate": 0.103428,
+        "phishing": 0.047198
+      }
+    },
+    {
+      "rank": 8,
+      "feature": "digit_ratio",
+      "mean_abs_shap": 0.099995,
+      "class_contributions": {
+        "fraud_related": 0.174231,
+        "legitimate": 0.063082,
+        "phishing": 0.062672
+      }
+    },
+    {
+      "rank": 9,
+      "feature": "financial_term_count",
+      "mean_abs_shap": 0.099942,
+      "class_contributions": {
+        "fraud_related": 0.183922,
+        "legitimate": 0.092823,
+        "phishing": 0.023081
+      }
+    },
+    {
+      "rank": 10,
+      "feature": "sentence_count",
+      "mean_abs_shap": 0.068812,
+      "class_contributions": {
+        "fraud_related": 0.080349,
+        "legitimate": 0.058068,
+        "phishing": 0.068019
+      }
+    },
+    {
+      "rank": 11,
+      "feature": "word_count",
+      "mean_abs_shap": 0.056358,
+      "class_contributions": {
+        "fraud_related": 0.049059,
+        "legitimate": 0.052607,
+        "phishing": 0.06741
+      }
+    },
+    {
+      "rank": 12,
+      "feature": "credential_term_count",
+      "mean_abs_shap": 0.054717,
+      "class_contributions": {
+        "fraud_related": 0.02616,
+        "legitimate": 0.054419,
+        "phishing": 0.083571
+      }
+    },
+    {
+      "rank": 13,
+      "feature": "max_domain_length",
+      "mean_abs_shap": 0.050944,
+      "class_contributions": {
+        "fraud_related": 0.042413,
+        "legitimate": 0.020733,
+        "phishing": 0.089687
+      }
+    },
+    {
+      "rank": 14,
+      "feature": "question_count",
+      "mean_abs_shap": 0.048413,
+      "class_contributions": {
+        "fraud_related": 0.030912,
+        "legitimate": 0.016112,
+        "phishing": 0.098214
+      }
+    },
+    {
+      "rank": 15,
+      "feature": "http_count",
+      "mean_abs_shap": 0.043922,
+      "class_contributions": {
+        "fraud_related": 0.014622,
+        "legitimate": 0.01265,
+        "phishing": 0.104493
+      }
+    },
+    {
+      "rank": 16,
+      "feature": "urgency_term_count",
+      "mean_abs_shap": 0.041306,
+      "class_contributions": {
+        "fraud_related": 0.047413,
+        "legitimate": 0.054027,
+        "phishing": 0.022479
+      }
+    },
+    {
+      "rank": 17,
+      "feature": "max_url_length",
+      "mean_abs_shap": 0.024679,
+      "class_contributions": {
+        "fraud_related": 0.011036,
+        "legitimate": 0.043641,
+        "phishing": 0.019361
+      }
+    },
+    {
+      "rank": 18,
+      "feature": "max_path_length",
+      "mean_abs_shap": 0.021457,
+      "class_contributions": {
+        "fraud_related": 0.029585,
+        "legitimate": 0.015702,
+        "phishing": 0.019084
+      }
+    },
+    {
+      "rank": 19,
+      "feature": "max_query_length",
+      "mean_abs_shap": 0.01934,
+      "class_contributions": {
+        "fraud_related": 0.03497,
+        "legitimate": 0.001579,
+        "phishing": 0.021471
+      }
+    },
+    {
+      "rank": 20,
+      "feature": "exclamation_count",
+      "mean_abs_shap": 0.015812,
+      "class_contributions": {
+        "fraud_related": 0.014939,
+        "legitimate": 0.013187,
+        "phishing": 0.019308
+      }
+    },
+    {
+      "rank": 21,
+      "feature": "average_url_length",
+      "mean_abs_shap": 0.013181,
+      "class_contributions": {
+        "fraud_related": 0.011519,
+        "legitimate": 0.020921,
+        "phishing": 0.007101
+      }
+    },
+    {
+      "rank": 22,
+      "feature": "account_action_term_count",
+      "mean_abs_shap": 0.01011,
+      "class_contributions": {
+        "fraud_related": 0.010563,
+        "legitimate": 0.017348,
+        "phishing": 0.002418
+      }
+    },
+    {
+      "rank": 23,
+      "feature": "url_count",
+      "mean_abs_shap": 0.005788,
+      "class_contributions": {
+        "fraud_related": 0.00261,
+        "legitimate": 0.006839,
+        "phishing": 0.007914
+      }
+    },
+    {
+      "rank": 24,
+      "feature": "secrecy_request_present",
+      "mean_abs_shap": 0.00446,
+      "class_contributions": {
+        "fraud_related": 0.000926,
+        "legitimate": 0.007014,
+        "phishing": 0.005439
+      }
+    },
+    {
+      "rank": 25,
+      "feature": "financial_request_present",
+      "mean_abs_shap": 0.002102,
+      "class_contributions": {
+        "fraud_related": 0.001682,
+        "legitimate": 0.001651,
+        "phishing": 0.002972
+      }
+    }
+  ],
+  "shap_local_explanations": [
+    {
+      "record_id": "Nigerian_Fraud_1590",
+      "true_label": "fraud_related",
+      "clean_subject": "Prof Charles Soludo.",
+      "top_positive_features": [
+        {
+          "feature": "nlp_prob_fraud",
+          "shap_value": 3.5885,
+          "value": 0.9924
+        },
+        {
+          "feature": "nlp_prob_legitimate",
+          "shap_value": 0.6942,
+          "value": 0.0029
+        },
+        {
+          "feature": "nlp_prob_phishing",
+          "shap_value": 0.5033,
+          "value": 0.0047
+        },
+        {
+          "feature": "special_character_ratio",
+          "shap_value": 0.2414,
+          "value": 0.0254
+        },
+        {
+          "feature": "financial_term_count",
+          "shap_value": 0.2059,
+          "value": 4.0
+        }
+      ],
+      "top_negative_features": [
+        {
+          "feature": "body_length",
+          "shap_value": -0.0943,
+          "value": 1654.0
+        },
+        {
+          "feature": "word_count",
+          "shap_value": -0.0793,
+          "value": 296.0
+        },
+        {
+          "feature": "currency_symbol_count",
+          "shap_value": -0.0521,
+          "value": 2.0
+        },
+        {
+          "feature": "urgency_term_count",
+          "shap_value": -0.0488,
+          "value": 1.0
+        },
+        {
+          "feature": "sentence_count",
+          "shap_value": -0.0237,
+          "value": 24.0
+        }
+      ]
+    },
+    {
+      "record_id": "TREC_07_49157",
+      "true_label": "legitimate",
+      "clean_subject": "Re: [R] Loading problem with XML_1.9",
+      "top_positive_features": [
+        {
+          "feature": "nlp_prob_legitimate",
+          "shap_value": 3.1695,
+          "value": 0.9879
+        },
+        {
+          "feature": "nlp_prob_fraud",
+          "shap_value": 0.9461,
+          "value": 0.0041
+        },
+        {
+          "feature": "nlp_prob_phishing",
+          "shap_value": 0.5858,
+          "value": 0.0081
+        },
+        {
+          "feature": "special_character_ratio",
+          "shap_value": 0.2568,
+          "value": 0.1329
+        },
+        {
+          "feature": "financial_term_count",
+          "shap_value": 0.0903,
+          "value": 0.0
+        }
+      ],
+      "top_negative_features": [
+        {
+          "feature": "uppercase_ratio",
+          "shap_value": -0.0593,
+          "value": 0.0432
+        },
+        {
+          "feature": "body_length",
+          "shap_value": -0.0492,
+          "value": 3099.0
+        },
+        {
+          "feature": "urgency_term_count",
+          "shap_value": -0.0315,
+          "value": 0.0
+        },
+        {
+          "feature": "credential_term_count",
+          "shap_value": -0.0282,
+          "value": 0.0
+        },
+        {
+          "feature": "account_action_term_count",
+          "shap_value": -0.0088,
+          "value": 0.0
+        }
+      ]
+    },
+    {
+      "record_id": "Nazario_814",
+      "true_label": "phishing",
+      "clean_subject": "Unauthorized Access",
+      "top_positive_features": [
+        {
+          "feature": "nlp_prob_phishing",
+          "shap_value": 3.4918,
+          "value": 0.9844
+        },
+        {
+          "feature": "nlp_prob_fraud",
+          "shap_value": 0.8876,
+          "value": 0.0074
+        },
+        {
+          "feature": "nlp_prob_legitimate",
+          "shap_value": 0.7827,
+          "value": 0.0082
+        },
+        {
+          "feature": "special_character_ratio",
+          "shap_value": 0.1627,
+          "value": 0.0189
+        },
+        {
+          "feature": "currency_symbol_count",
+          "shap_value": 0.0746,
+          "value": 0.0
+        }
+      ],
+      "top_negative_features": [
+        {
+          "feature": "credential_term_count",
+          "shap_value": -0.2842,
+          "value": 12.0
+        },
+        {
+          "feature": "body_length",
+          "shap_value": -0.125,
+          "value": 845.0
+        },
+        {
+          "feature": "uppercase_ratio",
+          "shap_value": -0.0568,
+          "value": 0.0308
+        },
+        {
+          "feature": "question_count",
+          "shap_value": -0.009,
+          "value": 0.0
+        },
+        {
+          "feature": "sentence_count",
+          "shap_value": -0.0014,
+          "value": 9.0
+        }
+      ]
+    }
+  ]
+}

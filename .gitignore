@@ -1,9 +1,13 @@
-# Byte-compiled / optimized / DLL files
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Python Cache & Bytecode
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Testing & Type checking caches
+*.so
 .pytest_cache/
 .mypy_cache/
 
@@ -15,3 +19,34 @@ data/geoip/*.bin
 data/geoip/tor_exit_nodes.txt
 *.mmdb
 *.mmdb.gz
+
+# Generated Model Files & Weights
+*.pkl
+*.joblib
+*.model
+*.h5
+*.pt
+*.pth
+*.onnx
+ml/models/*
+!ml/models/.gitkeep
+!ml/models/README.md
+
+# Local Datasets
+ml/data/raw/*
+!ml/data/raw/**/.gitkeep
+ml/data/processed/*
+!ml/data/processed/.gitkeep
+!ml/data/metadata/
+*.csv
+*.tsv
+*.parquet
+*.jsonl
+*.zip
+*.tar.gz
+
+# IDE & Editor Files
+.kilo/
+.vscode/
+.idea/
+*.env

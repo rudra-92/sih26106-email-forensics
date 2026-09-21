@@ -1,0 +1,15 @@
+From: notifications@shipping-service.top
+To: user@victim.com
+Subject: Package Delivery Issue - Action Required
+Date: Wed, 16 Oct 2024 11:00:00 +0000
+Message-ID: <package-9912@shipping-service.top>
+Content-Type: text/html; charset="utf-8"
+
+<html>
+<body>
+<p>Your package delivery failed. Please reschedule below:</p>
+<a href="http://192.168.1.150:8080/tracking/status">Internal Tracking Server</a>
+<a href="https://legitimate-domain.com/redirect?dest=http://evil-tracker.xyz/steal">Partner Redirection Portal</a>
+<a href="http://xn--pypal-4ve.com/login">Punycode Verification</a>
+</body>
+</html>

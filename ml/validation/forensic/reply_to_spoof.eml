@@ -1,0 +1,22 @@
+Received: from attacker.bulletproof.su (unknown [198.51.100.99])
+    by mx.victim.com with ESMTP id 9912881
+    for <target@victim.com>; Wed, 16 Oct 2024 09:12:00 +0000
+Authentication-Results: victim.com;
+    spf=fail smtp.mailfrom=attacker.bulletproof.su;
+    dkim=fail header.d=paypa1-security.com;
+    dmarc=fail action=reject header.from=paypal.com
+From: "PayPal Support Team <service@paypal.com>" <notice@paypa1-security.com>
+Reply-To: "Urgent Desk" <resolutions@paypa1-security.com>
+To: <target@victim.com>
+Subject: Urgent: Account Suspended Immediately
+Date: Wed, 16 Oct 2024 09:11:45 +0000
+Message-ID: <982734918237@paypa1-security.com>
+Content-Type: text/html; charset="utf-8"
+
+<html>
+<body>
+<p>Dear Customer,</p>
+<p>Your account has been restricted. Update account immediately within 24 hours.</p>
+<p><a href="http://198.51.100.99/login?url=https://paypa1-security.com/verify">Click Here to Unlock Account</a></p>
+</body>
+</html>

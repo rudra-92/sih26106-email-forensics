@@ -1,0 +1,92 @@
+[
+  {
+    "dataset_name": "Enron Email Corpus (Curated Organizational Email)",
+    "original_source": "Carnegie Mellon University (CMU) / CALO Project / FERC Investigation, curated in Zenodo 8339691",
+    "source_url": "https://www.cs.cmu.edu/~enron/",
+    "download_date": "2026-09-20",
+    "original_labels": [
+      "0 (ham/legitimate)",
+      "1 (spam)"
+    ],
+    "our_current_label": "legitimate",
+    "number_of_messages": 29767,
+    "available_fields": [
+      "subject",
+      "body",
+      "label"
+    ],
+    "raw_email_available": true,
+    "license_or_usage_terms": "Public Domain / Academic Research Use (FERC investigation record; CC-BY 4.0 for Zenodo curation)",
+    "notes": "Genuine corporate communications from Enron senior management. Critical provenance note: only original label 0 messages (15,791 emails) represent authentic organizational correspondence; label 1 messages (13,976 emails) in this benchmark subset represent spam and must NOT be categorized as legitimate. Raw dataset preserved in ml/data/raw/enron/Enron.csv."
+  },
+  {
+    "dataset_name": "Nazario Phishing Corpus",
+    "original_source": "Jose Nazario Phishing Archive (monkey.org), curated in Zenodo 8339691",
+    "source_url": "https://monkey.org/~jose/phishing/",
+    "download_date": "2026-09-20",
+    "original_labels": [
+      "1 (phishing)"
+    ],
+    "our_current_label": "phishing",
+    "number_of_messages": 1565,
+    "available_fields": [
+      "sender",
+      "receiver",
+      "date",
+      "subject",
+      "body",
+      "urls",
+      "label"
+    ],
+    "raw_email_available": true,
+    "license_or_usage_terms": "Public Research Archive / CC-BY 4.0 (for curated Zenodo release)",
+    "notes": "Historically verified ground-truth collection of credential harvesting, banking lures, and social engineering phishing emails. All 1,565 messages are confirmed phishing (label 1). Headers, sender, receiver, date, subject, body, and extracted URLs are preserved without alteration in ml/data/raw/phishing/Nazario.csv."
+  },
+  {
+    "dataset_name": "CEAS-08 (Conference on Email and Anti-Spam 2008 Challenge)",
+    "original_source": "CEAS 2008 Anti-Spam Challenge, curated in Zenodo 8339691",
+    "source_url": "http://www.ceas.cc/2008/",
+    "download_date": "2026-09-20",
+    "original_labels": [
+      "0 (ham/legitimate)",
+      "1 (spam/phishing)"
+    ],
+    "our_current_label": "legitimate (for label 0); quarantined challenge spam (for label 1)",
+    "number_of_messages": 39154,
+    "available_fields": [
+      "sender",
+      "receiver",
+      "date",
+      "subject",
+      "body",
+      "label",
+      "urls"
+    ],
+    "raw_email_available": true,
+    "license_or_usage_terms": "Open for Academic and Research Benchmarking / CC-BY 4.0 (Zenodo)",
+    "notes": "Preserves complete headers including sender, receiver, date, subject, body, and extracted URLs. Follows strict labeling rule: label 0 (17,312 emails) is verified legitimate/ham, while label 1 (21,842 emails) contains general challenge spam/phishing and is not converted wholesale to phishing without explicit verification. Preserved in ml/data/raw/phishing/CEAS_08.csv."
+  },
+  {
+    "dataset_name": "Fraudulent E-mail Corpus (CLAIR 419 Advance Fee Fraud)",
+    "original_source": "Dragomir Radev (2008), CLAIR collection of fraud email, ACL Data and Code Repository ADCR2008T001; mirrored on Kaggle (rtatman/fraudulent-email-corpus) and Zenodo 8339691",
+    "source_url": "https://www.kaggle.com/datasets/rtatman/fraudulent-email-corpus",
+    "download_date": "2026-09-20",
+    "original_labels": [
+      "1 (fraudulent)"
+    ],
+    "our_current_label": "fraud_related",
+    "number_of_messages": 3332,
+    "available_fields": [
+      "sender",
+      "receiver",
+      "date",
+      "subject",
+      "body",
+      "urls",
+      "label"
+    ],
+    "raw_email_available": true,
+    "license_or_usage_terms": "Creative Commons Attribution-ShareAlike 3.0 / CC BY-SA 4.0 / ACL Data Repository ADCR2008T001",
+    "notes": "Authentic collection of Nigerian / 419 advance-fee fraud, fake lottery, inheritance, and financial transfer solicitation emails submitted to webmaster@aclweb.org. Mapped strictly to 'fraud_related' because the corpus is explicitly documented and labeled as fraudulent email. Never generalized to generic spam. Preserved in ml/data/raw/fraud/Nigerian_Fraud.csv."
+  }
+]

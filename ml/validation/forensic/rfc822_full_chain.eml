@@ -1,0 +1,29 @@
+Received: from mx.destination.com (mx.destination.com [198.51.100.1])
+    by mailfilter.destination.com (Postfix) with ESMTP id 4X98721
+    for <victim@destination.com>; Tue, 15 Oct 2024 14:22:10 +0000 (UTC)
+Received: from relay.intermediate.net (relay.intermediate.net [203.0.113.55])
+    by mx.destination.com (Postfix) with ESMTPS id 3A48812
+    for <victim@destination.com>; Tue, 15 Oct 2024 14:20:05 +0000 (UTC)
+Received: from mail.company-sender.org (mail.company-sender.org [192.0.2.10])
+    by relay.intermediate.net (MTA) with ESMTP id 1F89901
+    for <victim@destination.com>; Tue, 15 Oct 2024 14:18:30 +0000 (UTC)
+Authentication-Results: destination.com;
+    spf=pass (sender IP is 192.0.2.10) smtp.mailfrom=company-sender.org;
+    dkim=pass (signature was verified) header.d=company-sender.org;
+    dmarc=pass action=none header.from=company-sender.org
+Received-SPF: Pass (destination.com: domain of company-sender.org designates 192.0.2.10 as permitted sender)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=company-sender.org;
+    s=202410; t=1729001910;
+    h=from:to:subject:date:message-id:content-type;
+    bh=w6bYQW+T7R1qZ3P6kX8=; b=dummy_valid_signature_hash_bytes_for_testing==
+From: "Security Ops" <alerts@company-sender.org>
+To: <victim@destination.com>
+Subject: Quarterly Infrastructure Maintenance Notice
+Date: Tue, 15 Oct 2024 14:18:00 +0000
+Message-ID: <20241015141800.12345@company-sender.org>
+Content-Type: text/plain; charset="utf-8"
+
+Hello team,
+
+Please be aware of the planned server maintenance window this Saturday.
+Check status updates on our internal portal: https://status.company-sender.org/updates
