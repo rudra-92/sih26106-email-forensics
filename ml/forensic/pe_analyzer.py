@@ -11,9 +11,7 @@ Performs static analysis of Windows PE binary attachments using pefile:
 Strict Security: Pure static parser inspection. Never executes binary.
 """
 
-import os
-import math
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, Any, Tuple
 import numpy as np
 
 try:
@@ -60,7 +58,7 @@ class PEAnalyzer:
 
     def analyze_bytes(self, data: bytes) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Statically inspects PE byte data."""
-        if not data or not data.startswith(b"MZ") or not PEFILE_AVAILABLE:
+        if not data or not data.startswith(b"MZ"):
             features = {
                 "is_pe": 0,
                 "pe_entropy": np.nan,
@@ -76,7 +74,42 @@ class PEAnalyzer:
                 "pe_persistence_apis": 0,
                 "pe_credential_access_apis": 0,
             }
-            evidence = {"is_pe": False, "reason": "No MZ header or pefile unavailable"}
+            evidence = {"is_pe": False, "reason": "No MZ header"}
+            return features, evidence
+
+        if not PEFILE_AVAILABLE:
+            # Minimal pure-Python structural PE signature check:
+            # 1. Starts with b"MZ" (checked above)
+            # 2. Minimum length >= 0x40 to read e_lfanew offset
+            # 3. Read little-endian e_lfanew
+            # 4. Verify e_lfanew offset is within supplied data bounds
+            # 5. Verify b"PE\x00\x00" signature at e_lfanew
+            is_valid_pe = False
+            if len(data) >= 0x40:
+                e_lfanew = int.from_bytes(data[0x3C:0x40], byteorder="little")
+                if 0x40 <= e_lfanew <= len(data) - 4 and data[e_lfanew:e_lfanew + 4] == b"PE\x00\x00":
+                    is_valid_pe = True
+
+            features = {
+                "is_pe": 1 if is_valid_pe else 0,
+                "pe_entropy": np.nan,
+                "section_count": 0,
+                "suspicious_section_count": 0,
+                "import_count": 0,
+                "dll_count": 0,
+                "export_count": 0,
+                "pe_process_creation_apis": 0,
+                "pe_command_execution_apis": 0,
+                "pe_network_communication_apis": 0,
+                "pe_memory_manipulation_apis": 0,
+                "pe_persistence_apis": 0,
+                "pe_credential_access_apis": 0,
+            }
+            evidence = {
+                "is_pe": is_valid_pe,
+                "analysis_method": "structural_signature_fallback",
+                "reason": "Verified MZ and PE headers; pefile unavailable" if is_valid_pe else "MZ header present but invalid PE signature",
+            }
             return features, evidence
 
         try:

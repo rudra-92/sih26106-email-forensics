@@ -9,14 +9,26 @@ open redirect parameters, suspicious TLDs), and provides a modular URL reputatio
 import re
 import urllib.parse
 import ipaddress
-from typing import Dict, List, Any, Optional, Tuple, Set
+from typing import Dict, List, Any, Optional, Tuple
 import numpy as np
 
-# Robust, linear-time URL and naked domain extraction pattern
+# Robust URL and naked domain extraction pattern allowing dots, colons, and path chars in URL bodies
 URL_REGEX = re.compile(
-    r"""(?i)\b(?:https?://|www\d{0,3}[.]|[a-z0-9][a-z0-9\-_.]+\.(?:com|org|net|in|edu|gov|io|co|ai|xyz|tech|info|me|online|site|app|dev)/?)[^\s<>"'()\[\]{}:;,\.?!]*""",
+    r"""(?i)\b(?:https?://|www\d{0,3}[.]|[a-z0-9][a-z0-9\-_.]+\.(?:com|org|net|in|edu|gov|io|co|ai|xyz|tech|info|me|online|site|app|dev)/?)[^\s<>"'()\[\]{}`]*""",
     re.VERBOSE
 )
+
+_TRAILING_PUNCTUATION = ".,!?;:)>]}'\""
+
+
+def _clean_extracted_url(raw_url: str) -> str:
+    """Strips trailing sentence punctuation while preserving balanced parentheses and query parameters."""
+    url = raw_url
+    while url and url[-1] in _TRAILING_PUNCTUATION:
+        if url[-1] == ")" and "(" in url:
+            break
+        url = url[:-1]
+    return url
 
 HTML_HREF_REGEX = re.compile(r"""(?:href|src)=["'](https?://[^"']+)["']""", re.IGNORECASE)
 
@@ -44,7 +56,9 @@ class URLAnalyzer:
         # Plain text regex
         combined = f"{text_plain}\n{text_html}"
         for match in URL_REGEX.finditer(combined):
-            url_str = match.group(0).strip()
+            url_str = _clean_extracted_url(match.group(0).strip())
+            if not url_str:
+                continue
             # If naked domain or www, add protocol for uniform parsing
             if not url_str.lower().startswith("http://") and not url_str.lower().startswith("https://"):
                 url_str = "http://" + url_str

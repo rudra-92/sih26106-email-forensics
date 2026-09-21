@@ -11,9 +11,8 @@ using oletools (olevba, olefile):
 Strict Security: Pure static parser inspection. Never executes macros.
 """
 
-import io
 import re
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Tuple
 
 try:
     from oletools.olevba import VBA_Parser
@@ -38,14 +37,14 @@ class DocumentAnalyzer:
 
     def analyze_bytes(self, filename: str, data: bytes) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Statically analyzes document attachment bytes."""
-        if not data or not OLETOOLS_AVAILABLE:
+        if not data:
             features = {
                 "has_macro": 0,
                 "macro_count": 0,
                 "embedded_object_count": 0,
                 "suspicious_macro_indicator": 0,
             }
-            evidence = {"analyzed": False, "reason": "No data or oletools unavailable"}
+            evidence = {"analyzed": False, "reason": "No data"}
             return features, evidence
 
         filename_clean = filename.lower()
@@ -70,27 +69,39 @@ class DocumentAnalyzer:
         macro_count = 0
         suspicious_macro = 0
         embedded_object_count = 0
-        vba_stream_names = []
+        vba_stream_names: List[str] = []
+        analysis_method = "oletools" if OLETOOLS_AVAILABLE else "fallback_heuristic"
 
-        try:
-            vbaparser = VBA_Parser(filename=filename, data=data)
-            if vbaparser.detect_vba_macros():
-                has_macro = 1
-                for (subfilename, stream_path, vba_filename, vba_code) in vbaparser.extract_macros():
-                    macro_count += 1
-                    vba_stream_names.append(stream_path)
-                    if SUSPICIOUS_MACRO_PATTERNS.search(vba_code):
+        if OLETOOLS_AVAILABLE:
+            try:
+                vbaparser = VBA_Parser(filename=filename, data=data)
+                if vbaparser.detect_vba_macros():
+                    has_macro = 1
+                    for (subfilename, stream_path, vba_filename, vba_code) in vbaparser.extract_macros():
+                        macro_count += 1
+                        vba_stream_names.append(stream_path)
+                        if SUSPICIOUS_MACRO_PATTERNS.search(vba_code):
+                            suspicious_macro = 1
+
+                # Check for embedded objects via olefile if present
+                if hasattr(vbaparser, "ole_file") and vbaparser.ole_file:
+                    for entry in vbaparser.ole_file.listdir():
+                        if any("package" in part.lower() or "ole" in part.lower() for part in entry):
+                            embedded_object_count += 1
+
+                vbaparser.close()
+            except Exception:
+                # Fallback scan for VBA procedure signatures
+                analysis_method = "fallback_heuristic"
+                data_lower = data.lower()
+                if b"sub " in data_lower or b"function " in data_lower or b"autoopen" in data_lower or b"vb_name" in data_lower:
+                    has_macro = 1
+                    macro_count = max(1, len(re.findall(rb"\b(?:sub|function)\s+\w+", data, re.IGNORECASE)))
+                    if SUSPICIOUS_MACRO_PATTERNS.search(data.decode(errors="ignore")):
                         suspicious_macro = 1
-
-            # Check for embedded objects via olefile if present
-            if hasattr(vbaparser, "ole_file") and vbaparser.ole_file:
-                for entry in vbaparser.ole_file.listdir():
-                    if any("package" in part.lower() or "ole" in part.lower() for part in entry):
-                        embedded_object_count += 1
-
-            vbaparser.close()
-        except Exception as e:
-            # Fallback scan for VBA procedure signatures
+        else:
+            # Fallback scan for VBA procedure signatures when oletools is unavailable
+            analysis_method = "fallback_heuristic"
             data_lower = data.lower()
             if b"sub " in data_lower or b"function " in data_lower or b"autoopen" in data_lower or b"vb_name" in data_lower:
                 has_macro = 1
@@ -107,6 +118,7 @@ class DocumentAnalyzer:
 
         evidence = {
             "analyzed": True,
+            "analysis_method": analysis_method,
             "has_macro": bool(has_macro),
             "macro_count": macro_count,
             "vba_streams": vba_stream_names,

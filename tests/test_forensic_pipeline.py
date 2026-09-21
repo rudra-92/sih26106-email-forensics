@@ -32,14 +32,13 @@ import numpy as np
 # Ensure workspace root in path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from ml.forensic.email_parser import parse_email, ParsedEmail
+from ml.forensic.email_parser import ParsedEmail
 from ml.forensic.header_analyzer import HeaderAnalyzer
 from ml.forensic.auth_analyzer import AuthAnalyzer
 from ml.forensic.received_analyzer import ReceivedAnalyzer
 from ml.forensic.ip_analyzer import IPAnalyzer
 from ml.forensic.url_analyzer import URLAnalyzer
 from ml.forensic.domain_analyzer import DomainAnalyzer
-from ml.forensic.content_analyzer import ContentAnalyzer
 from ml.forensic.attachment_analyzer import AttachmentAnalyzer
 from ml.forensic.pe_analyzer import PEAnalyzer
 from ml.forensic.document_analyzer import DocumentAnalyzer
@@ -220,8 +219,13 @@ class TestForensicPipeline(unittest.TestCase):
         self.assertIn("yara_match_count", feats)
         self.assertIsInstance(ev.get("yara_rule_names"), list)
 
-    # 19. Model 1 Probability Integration
+    # 19. Model 1 Probability Integration (Real Model Artifact)
     def test_model1_probability_integration(self):
+        m1_lr = "ml/models/model1d_word_char_filtered_lr.joblib"
+        m1_vec = "ml/models/model1d_word_char_filtered_vectorizer.joblib"
+        if not (os.path.exists(m1_lr) and os.path.exists(m1_vec)):
+            self.skipTest("Model 1 artifacts not present; skipping real-model inference test.")
+
         probs = self.pipeline.predict_model1_probabilities("URGENT: Verify your PayPal account password now!")
         self.assertIn("nlp_prob_legitimate", probs)
         self.assertIn("nlp_prob_phishing", probs)
@@ -230,6 +234,37 @@ class TestForensicPipeline(unittest.TestCase):
         # Should sum approximately to 1.0 (for 3 classes)
         total_prob = probs["nlp_prob_legitimate"] + probs["nlp_prob_phishing"] + probs["nlp_prob_fraud"]
         self.assertAlmostEqual(total_prob, 1.0, delta=0.05)
+
+    def test_model1_uninitialized_default_probabilities(self):
+        """When Model 1 artifacts are absent, pipeline must return explicit default NaN state."""
+        if self.pipeline.model1_model is None or self.pipeline.model1_vectorizer is None:
+            probs = self.pipeline.predict_model1_probabilities("Any test message")
+            self.assertTrue(np.isnan(probs["nlp_prob_legitimate"]))
+            self.assertTrue(np.isnan(probs["nlp_prob_phishing"]))
+            self.assertTrue(np.isnan(probs["nlp_prob_fraud"]))
+            self.assertEqual(probs["nlp_prob_spam"], 0.0)
+
+    def test_model1_probability_output_mapping_with_stub(self):
+        """Verify probability output mapping contract using an in-memory test stub."""
+        from unittest.mock import MagicMock
+        stub_pipeline = ForensicFeaturePipeline()
+        mock_model = MagicMock()
+        mock_model.classes_ = np.array(["fraud_related", "legitimate", "phishing", "spam"])
+        mock_model.predict_proba.return_value = np.array([[0.10, 0.20, 0.65, 0.05]])
+        mock_vectorizer = MagicMock()
+        mock_vectorizer.transform.return_value = [[1, 2, 3]]
+
+        stub_pipeline.model1_model = mock_model
+        stub_pipeline.model1_vectorizer = mock_vectorizer
+        stub_pipeline.model1_classes = list(mock_model.classes_)
+
+        probs = stub_pipeline.predict_model1_probabilities("URGENT: Verify password")
+        self.assertEqual(probs["nlp_prob_fraud"], 0.10)
+        self.assertEqual(probs["nlp_prob_legitimate"], 0.20)
+        self.assertEqual(probs["nlp_prob_phishing"], 0.65)
+        self.assertEqual(probs["nlp_prob_spam"], 0.05)
+        total_prob = probs["nlp_prob_legitimate"] + probs["nlp_prob_phishing"] + probs["nlp_prob_fraud"]
+        self.assertAlmostEqual(total_prob, 0.95, delta=0.01)
 
     # 20. Missing Field Handling (NaN Preservation)
     def test_missing_field_handling(self):
