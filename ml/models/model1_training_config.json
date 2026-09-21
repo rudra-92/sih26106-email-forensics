@@ -1,0 +1,91 @@
+{
+  "timestamp": "2026-09-20T15:22:29.469593",
+  "random_state": 42,
+  "input_dataset": "ml/data/processed/emails_balanced.csv",
+  "train_size": 7936,
+  "validation_size": 1701,
+  "test_size": 1701,
+  "class_names": [
+    "legitimate",
+    "phishing",
+    "fraud_related"
+  ],
+  "vectorizer_parameters": {
+    "ngram_range": [
+      1,
+      2
+    ],
+    "sublinear_tf": true,
+    "min_df": 3,
+    "max_df": 0.95,
+    "strip_accents": "unicode",
+    "lowercase": true
+  },
+  "vectorizer_vocabulary_size": 131017,
+  "classifier_parameters": {
+    "C": 1.0,
+    "penalty": "l2",
+    "solver": "lbfgs",
+    "max_iter": 2000,
+    "class_weight": "balanced",
+    "random_state": 42
+  },
+  "validation_metrics": {
+    "split": "validation",
+    "sample_count": 1701,
+    "accuracy": 0.99,
+    "macro_precision": 0.9867,
+    "macro_recall": 0.9872,
+    "macro_f1": 0.9869,
+    "weighted_f1": 0.99,
+    "per_class": {
+      "legitimate": {
+        "precision": 0.9898,
+        "recall": 0.9949,
+        "f1": 0.9923,
+        "support": 974
+      },
+      "phishing": {
+        "precision": 0.9703,
+        "recall": 0.9828,
+        "f1": 0.9765,
+        "support": 233
+      },
+      "fraud_related": {
+        "precision": 1.0,
+        "recall": 0.9838,
+        "f1": 0.9918,
+        "support": 494
+      }
+    }
+  },
+  "test_metrics": {
+    "split": "test",
+    "sample_count": 1701,
+    "accuracy": 0.9924,
+    "macro_precision": 0.9891,
+    "macro_recall": 0.9898,
+    "macro_f1": 0.9894,
+    "weighted_f1": 0.9924,
+    "per_class": {
+      "legitimate": {
+        "precision": 0.9928,
+        "recall": 0.9949,
+        "f1": 0.9939,
+        "support": 976
+      },
+      "phishing": {
+        "precision": 0.9744,
+        "recall": 0.9828,
+        "f1": 0.9785,
+        "support": 232
+      },
+      "fraud_related": {
+        "precision": 1.0,
+        "recall": 0.9919,
+        "f1": 0.9959,
+        "support": 493
+      }
+    }
+  }
+}

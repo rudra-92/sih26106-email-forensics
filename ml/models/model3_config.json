@@ -1,0 +1,145 @@
+{
+  "model_name": "Model 3 \u2014 XGBoost Forensic Fusion Classifier",
+  "version": "1.0.0",
+  "task": "email_threat_multiclass_classification",
+  "objective": "multi:softprob",
+  "classes": [
+    "fraud_related",
+    "legitimate",
+    "phishing"
+  ],
+  "class_to_int": {
+    "fraud_related": 0,
+    "legitimate": 1,
+    "phishing": 2
+  },
+  "int_to_class": {
+    "0": "fraud_related",
+    "1": "legitimate",
+    "2": "phishing"
+  },
+  "hyperparameters": {
+    "objective": "multi:softprob",
+    "num_class": 3,
+    "n_estimators": 300,
+    "max_depth": 6,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "eval_metric": "mlogloss",
+    "random_state": 42,
+    "n_jobs": -1,
+    "tree_method": "hist"
+  },
+  "total_features": 140,
+  "validation_metrics": {
+    "split": "Validation",
+    "accuracy": 0.9929,
+    "macro_precision": 0.9923,
+    "macro_recall": 0.9906,
+    "macro_f1": 0.9915,
+    "weighted_f1": 0.9929,
+    "per_class": {
+      "fraud_related": {
+        "precision": 0.998,
+        "recall": 0.9879,
+        "f1": 0.9929,
+        "support": 494
+      },
+      "legitimate": {
+        "precision": 0.9918,
+        "recall": 0.9969,
+        "f1": 0.9944,
+        "support": 974
+      },
+      "phishing": {
+        "precision": 0.9871,
+        "recall": 0.9871,
+        "f1": 0.9871,
+        "support": 233
+      }
+    },
+    "confusion_matrix": [
+      [
+        488,
+        5,
+        1
+      ],
+      [
+        1,
+        971,
+        2
+      ],
+      [
+        0,
+        3,
+        230
+      ]
+    ]
+  },
+  "test_metrics": {
+    "split": "Test",
+    "accuracy": 0.9953,
+    "macro_precision": 0.9919,
+    "macro_recall": 0.9956,
+    "macro_f1": 0.9937,
+    "weighted_f1": 0.9953,
+    "per_class": {
+      "fraud_related": {
+        "precision": 1.0,
+        "recall": 0.9899,
+        "f1": 0.9949,
+        "support": 493
+      },
+      "legitimate": {
+        "precision": 0.9969,
+        "recall": 0.9969,
+        "f1": 0.9969,
+        "support": 976
+      },
+      "phishing": {
+        "precision": 0.9789,
+        "recall": 1.0,
+        "f1": 0.9893,
+        "support": 232
+      }
+    },
+    "confusion_matrix": [
+      [
+        488,
+        3,
+        2
+      ],
+      [
+        0,
+        973,
+        3
+      ],
+      [
+        0,
+        0,
+        232
+      ]
+    ]
+  },
+  "leakage_prevention": {
+    "oof_folds": 5,
+    "oof_model": "Model 1D Word + Char_wb TF-IDF Artifact-Filtered LR",
+    "excluded_columns": [
+      "email_id",
+      "source_record_id",
+      "original_label",
+      "label",
+      "clean_body",
+      "subject",
+      "source_dataset",
+      "clean_text",
+      "record_id",
+      "our_label",
+      "text_hash",
+      "clean_subject",
+      "body"
+    ],
+    "native_nan_handling": true
+  }
+}

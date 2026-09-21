@@ -1,0 +1,987 @@
+{
+  "total_features": 140,
+  "feature_names": [
+    "nlp_prob_legitimate",
+    "nlp_prob_spam",
+    "nlp_prob_phishing",
+    "nlp_prob_fraud",
+    "has_reply_to",
+    "from_replyto_mismatch",
+    "sender_domain_replyto_domain_mismatch",
+    "display_name_present",
+    "display_name_email_mismatch",
+    "multiple_from_addresses",
+    "multiple_reply_to_addresses",
+    "missing_message_id",
+    "missing_date",
+    "missing_from",
+    "missing_to",
+    "to_address_count",
+    "cc_address_count",
+    "spf_present",
+    "spf_pass",
+    "spf_fail",
+    "spf_softfail",
+    "spf_neutral",
+    "spf_none",
+    "dkim_present",
+    "dkim_pass",
+    "dkim_fail",
+    "dmarc_present",
+    "dmarc_pass",
+    "dmarc_fail",
+    "dmarc_policy_none",
+    "dmarc_policy_quarantine",
+    "dmarc_policy_reject",
+    "spf_alignment_issue",
+    "dkim_alignment_issue",
+    "dmarc_alignment_issue",
+    "authentication_failure_count",
+    "received_hop_count",
+    "unique_ip_count",
+    "public_ip_count",
+    "private_ip_count",
+    "invalid_ip_count",
+    "hostname_ip_mismatch_count",
+    "timestamp_order_anomaly",
+    "ip_count",
+    "loopback_ip_count",
+    "reserved_ip_count",
+    "has_ipv6",
+    "domain_length",
+    "subdomain_depth",
+    "hyphen_count",
+    "digit_count",
+    "special_character_count",
+    "punycode_flag",
+    "unicode_flag",
+    "suspicious_tld_candidate",
+    "lookalike_domain_candidate",
+    "homoglyph_candidate",
+    "target_domain_min_distance_ratio",
+    "domain_mismatch",
+    "url_count",
+    "unique_url_count",
+    "https_count",
+    "http_count",
+    "ip_based_url_count",
+    "url_with_port_count",
+    "average_url_length",
+    "max_url_length",
+    "max_domain_length",
+    "max_path_length",
+    "max_query_length",
+    "has_ip_as_hostname",
+    "has_at_symbol",
+    "has_encoded_characters",
+    "has_punycode",
+    "has_unicode_domain",
+    "has_suspicious_structure",
+    "has_suspicious_tld_candidate",
+    "body_length",
+    "word_count",
+    "sentence_count",
+    "html_present",
+    "plain_text_present",
+    "html_to_text_ratio",
+    "uppercase_ratio",
+    "digit_ratio",
+    "special_character_ratio",
+    "exclamation_count",
+    "question_count",
+    "currency_symbol_count",
+    "urgency_term_count",
+    "financial_term_count",
+    "credential_term_count",
+    "account_action_term_count",
+    "financial_request_present",
+    "payment_request_present",
+    "credential_request_present",
+    "gift_card_request_present",
+    "bank_change_request_present",
+    "wire_transfer_request_present",
+    "secrecy_request_present",
+    "urgent_request_present",
+    "executive_style_display_name",
+    "attachment_count",
+    "has_attachment",
+    "total_attachment_size_bytes",
+    "double_extension",
+    "executable_attachment",
+    "script_attachment",
+    "archive_attachment",
+    "document_attachment",
+    "macro_capable_document",
+    "MIME_extension_mismatch",
+    "file_entropy",
+    "printable_string_count",
+    "url_string_count",
+    "ip_string_count",
+    "email_string_count",
+    "is_pe",
+    "pe_entropy",
+    "section_count",
+    "suspicious_section_count",
+    "import_count",
+    "dll_count",
+    "export_count",
+    "pe_process_creation_apis",
+    "pe_command_execution_apis",
+    "pe_network_communication_apis",
+    "pe_memory_manipulation_apis",
+    "pe_persistence_apis",
+    "pe_credential_access_apis",
+    "has_macro",
+    "macro_count",
+    "embedded_object_count",
+    "suspicious_macro_indicator",
+    "pdf_has_javascript",
+    "pdf_has_openaction",
+    "pdf_has_launch",
+    "pdf_has_embedded_file",
+    "pdf_has_acroform",
+    "yara_match_count"
+  ],
+  "features": [
+    {
+      "index": 0,
+      "feature_name": "nlp_prob_legitimate",
+      "category": "nlp_probability",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 1,
+      "feature_name": "nlp_prob_spam",
+      "category": "nlp_probability",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 2,
+      "feature_name": "nlp_prob_phishing",
+      "category": "nlp_probability",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 3,
+      "feature_name": "nlp_prob_fraud",
+      "category": "nlp_probability",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 4,
+      "feature_name": "has_reply_to",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 5,
+      "feature_name": "from_replyto_mismatch",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 6,
+      "feature_name": "sender_domain_replyto_domain_mismatch",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 7,
+      "feature_name": "display_name_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 8,
+      "feature_name": "display_name_email_mismatch",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 9,
+      "feature_name": "multiple_from_addresses",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 10,
+      "feature_name": "multiple_reply_to_addresses",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 11,
+      "feature_name": "missing_message_id",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 12,
+      "feature_name": "missing_date",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 13,
+      "feature_name": "missing_from",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 14,
+      "feature_name": "missing_to",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 15,
+      "feature_name": "to_address_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 16,
+      "feature_name": "cc_address_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 17,
+      "feature_name": "spf_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 18,
+      "feature_name": "spf_pass",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 19,
+      "feature_name": "spf_fail",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 20,
+      "feature_name": "spf_softfail",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 21,
+      "feature_name": "spf_neutral",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 22,
+      "feature_name": "spf_none",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 23,
+      "feature_name": "dkim_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 24,
+      "feature_name": "dkim_pass",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 25,
+      "feature_name": "dkim_fail",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 26,
+      "feature_name": "dmarc_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 27,
+      "feature_name": "dmarc_pass",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 28,
+      "feature_name": "dmarc_fail",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 29,
+      "feature_name": "dmarc_policy_none",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 30,
+      "feature_name": "dmarc_policy_quarantine",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 31,
+      "feature_name": "dmarc_policy_reject",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 32,
+      "feature_name": "spf_alignment_issue",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 33,
+      "feature_name": "dkim_alignment_issue",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 34,
+      "feature_name": "dmarc_alignment_issue",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 35,
+      "feature_name": "authentication_failure_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 36,
+      "feature_name": "received_hop_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 37,
+      "feature_name": "unique_ip_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 38,
+      "feature_name": "public_ip_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 39,
+      "feature_name": "private_ip_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 40,
+      "feature_name": "invalid_ip_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 41,
+      "feature_name": "hostname_ip_mismatch_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 42,
+      "feature_name": "timestamp_order_anomaly",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 43,
+      "feature_name": "ip_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 44,
+      "feature_name": "loopback_ip_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 45,
+      "feature_name": "reserved_ip_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 46,
+      "feature_name": "has_ipv6",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 47,
+      "feature_name": "domain_length",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 48,
+      "feature_name": "subdomain_depth",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 49,
+      "feature_name": "hyphen_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 50,
+      "feature_name": "digit_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 51,
+      "feature_name": "special_character_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 52,
+      "feature_name": "punycode_flag",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 53,
+      "feature_name": "unicode_flag",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 54,
+      "feature_name": "suspicious_tld_candidate",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 55,
+      "feature_name": "lookalike_domain_candidate",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 56,
+      "feature_name": "homoglyph_candidate",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 57,
+      "feature_name": "target_domain_min_distance_ratio",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 58,
+      "feature_name": "domain_mismatch",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 59,
+      "feature_name": "url_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 60,
+      "feature_name": "unique_url_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 61,
+      "feature_name": "https_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 62,
+      "feature_name": "http_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 63,
+      "feature_name": "ip_based_url_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 64,
+      "feature_name": "url_with_port_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 65,
+      "feature_name": "average_url_length",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 66,
+      "feature_name": "max_url_length",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 67,
+      "feature_name": "max_domain_length",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 68,
+      "feature_name": "max_path_length",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 69,
+      "feature_name": "max_query_length",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 70,
+      "feature_name": "has_ip_as_hostname",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 71,
+      "feature_name": "has_at_symbol",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 72,
+      "feature_name": "has_encoded_characters",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 73,
+      "feature_name": "has_punycode",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 74,
+      "feature_name": "has_unicode_domain",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 75,
+      "feature_name": "has_suspicious_structure",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 76,
+      "feature_name": "has_suspicious_tld_candidate",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 77,
+      "feature_name": "body_length",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 78,
+      "feature_name": "word_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 79,
+      "feature_name": "sentence_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 80,
+      "feature_name": "html_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 81,
+      "feature_name": "plain_text_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 82,
+      "feature_name": "html_to_text_ratio",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 83,
+      "feature_name": "uppercase_ratio",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 84,
+      "feature_name": "digit_ratio",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 85,
+      "feature_name": "special_character_ratio",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 86,
+      "feature_name": "exclamation_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 87,
+      "feature_name": "question_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 88,
+      "feature_name": "currency_symbol_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 89,
+      "feature_name": "urgency_term_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 90,
+      "feature_name": "financial_term_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 91,
+      "feature_name": "credential_term_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 92,
+      "feature_name": "account_action_term_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 93,
+      "feature_name": "financial_request_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 94,
+      "feature_name": "payment_request_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 95,
+      "feature_name": "credential_request_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 96,
+      "feature_name": "gift_card_request_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 97,
+      "feature_name": "bank_change_request_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 98,
+      "feature_name": "wire_transfer_request_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 99,
+      "feature_name": "secrecy_request_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 100,
+      "feature_name": "urgent_request_present",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 101,
+      "feature_name": "executive_style_display_name",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 102,
+      "feature_name": "attachment_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 103,
+      "feature_name": "has_attachment",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 104,
+      "feature_name": "total_attachment_size_bytes",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 105,
+      "feature_name": "double_extension",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 106,
+      "feature_name": "executable_attachment",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 107,
+      "feature_name": "script_attachment",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 108,
+      "feature_name": "archive_attachment",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 109,
+      "feature_name": "document_attachment",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 110,
+      "feature_name": "macro_capable_document",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 111,
+      "feature_name": "MIME_extension_mismatch",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 112,
+      "feature_name": "file_entropy",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 113,
+      "feature_name": "printable_string_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 114,
+      "feature_name": "url_string_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 115,
+      "feature_name": "ip_string_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 116,
+      "feature_name": "email_string_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 117,
+      "feature_name": "is_pe",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 118,
+      "feature_name": "pe_entropy",
+      "category": "forensic_numerical",
+      "expected_dtype": "float64"
+    },
+    {
+      "index": 119,
+      "feature_name": "section_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 120,
+      "feature_name": "suspicious_section_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 121,
+      "feature_name": "import_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 122,
+      "feature_name": "dll_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 123,
+      "feature_name": "export_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 124,
+      "feature_name": "pe_process_creation_apis",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 125,
+      "feature_name": "pe_command_execution_apis",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 126,
+      "feature_name": "pe_network_communication_apis",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 127,
+      "feature_name": "pe_memory_manipulation_apis",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 128,
+      "feature_name": "pe_persistence_apis",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 129,
+      "feature_name": "pe_credential_access_apis",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 130,
+      "feature_name": "has_macro",
+      "category": "forensic_binary_flag",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 131,
+      "feature_name": "macro_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 132,
+      "feature_name": "embedded_object_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 133,
+      "feature_name": "suspicious_macro_indicator",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 134,
+      "feature_name": "pdf_has_javascript",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 135,
+      "feature_name": "pdf_has_openaction",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 136,
+      "feature_name": "pdf_has_launch",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 137,
+      "feature_name": "pdf_has_embedded_file",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 138,
+      "feature_name": "pdf_has_acroform",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    },
+    {
+      "index": 139,
+      "feature_name": "yara_match_count",
+      "category": "forensic_numerical",
+      "expected_dtype": "int64"
+    }
+  ]
+}
