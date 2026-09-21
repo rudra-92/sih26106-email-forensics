@@ -114,7 +114,11 @@ class AttachmentExtractor:
                 # Fallback to name parameter in Content-Type
                 name_param = part.get_param("name")
                 if name_param:
-                    filename = _decode_mime_header(name_param)
+                    if isinstance(name_param, tuple):
+                        name_str = name_param[2] if len(name_param) > 2 else str(name_param)
+                    else:
+                        name_str = str(name_param)
+                    filename = _decode_mime_header(name_str)
 
             if filename:
                 filename = _decode_mime_header(filename).strip()
@@ -179,8 +183,10 @@ class AttachmentExtractor:
         """Safely extract decoded raw bytes from a MIME part."""
         try:
             payload = part.get_payload(decode=True)
-            if payload is not None:
+            if isinstance(payload, bytes):
                 return payload
+            if isinstance(payload, str):
+                return payload.encode("utf-8")
         except Exception:
             pass
 

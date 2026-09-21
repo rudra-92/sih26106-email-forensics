@@ -12,13 +12,11 @@ Tests:
 
 import json
 import os
-from pathlib import Path
 import tempfile
 import unittest
 
 from modules.lookalike_domain import (
     DomainNormalizationError,
-    NormalizedDomain,
     create_domain_comparison_edge,
     load_reference_domains,
     normalize_domain,

@@ -6,7 +6,6 @@ graph entities/relationships, and structured forensic observations.
 """
 
 from dataclasses import asdict, dataclass, field
-import hashlib
 from typing import Any, Dict, List, Optional
 
 from modules.sender_identity.models import Entity, Relationship

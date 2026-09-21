@@ -170,6 +170,8 @@ class TestSenderIdentityRefinedModule(unittest.TestCase):
         self.assertIn("contextual indicator", obs.description.lower())
 
         # Overall assessment must NOT call it high-risk or definite attack
+        self.assertIsNotNone(report.assessment)
+        assert report.assessment is not None
         self.assertNotEqual(report.assessment.risk_level, "high")
         self.assertLess(report.assessment.confidence, 0.40)
 
@@ -201,6 +203,8 @@ class TestSenderIdentityRefinedModule(unittest.TestCase):
         self.assertIn("contextual indicator", obs.description.lower())
 
         # Low risk
+        self.assertIsNotNone(report.assessment)
+        assert report.assessment is not None
         self.assertIn(report.assessment.risk_level, ("none", "low"))
         self.assertLess(report.assessment.confidence, 0.35)
 
@@ -324,6 +328,7 @@ class TestSenderIdentityRefinedModule(unittest.TestCase):
         assessment = report.assessment
 
         self.assertIsNotNone(assessment)
+        assert assessment is not None
         self.assertEqual(assessment.category, "high_risk_sender_identity_anomaly")
         self.assertEqual(assessment.risk_level, "high")
         self.assertEqual(assessment.evidence_strength, "strong")

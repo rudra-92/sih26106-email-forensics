@@ -13,8 +13,8 @@ Parses URLs into standardized components:
 """
 
 import ipaddress
-from typing import Any, Dict, List, Optional
-from urllib.parse import parse_qs, unquote, urlsplit, urlunsplit
+from typing import Optional
+from urllib.parse import parse_qs, urlsplit, urlunsplit
 
 from modules.lookalike_domain.normalizer import (
     DomainNormalizationError,

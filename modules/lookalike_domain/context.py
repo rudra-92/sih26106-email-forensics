@@ -13,7 +13,7 @@ Key Principles:
 7. Bounded Confidence: Confidence scores are bounded (max 0.94) and represent heuristic evidence weight, not attack probability.
 """
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 import logging
 from typing import Any, Dict, List, Optional, Set, Union
 
@@ -119,7 +119,7 @@ def _extract_module1_evidence(sender_identity: Optional[Any]) -> Dict[str, Any]:
 
     Accepts SenderIdentityReport instance, dict, or None.
     """
-    extracted = {
+    extracted: Dict[str, Any] = {
         "email_id": "E001",
         "from_domain": None,
         "reply_to_domain": None,

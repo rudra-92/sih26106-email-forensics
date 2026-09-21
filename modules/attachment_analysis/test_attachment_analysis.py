@@ -13,20 +13,8 @@ import zipfile
 from modules.attachment_analysis.analyzer import (
     SignatureDetector,
     StaticAttachmentAnalyzer,
-    analyze_attachments,
-    analyze_filename,
 )
-from modules.attachment_analysis.extractor import AttachmentExtractor, extract_attachments
-from modules.attachment_analysis.models import (
-    ArchiveMetadata,
-    AttachmentAssessment,
-    AttachmentMlFeatures,
-    AttachmentObservation,
-    AttachmentReport,
-    ExtractedAttachment,
-    FilenameAnalysis,
-    FileSignature,
-)
+from modules.attachment_analysis.extractor import extract_attachments
 
 
 def _create_synthetic_email_message(

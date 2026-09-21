@@ -15,12 +15,11 @@ Performs deterministic offline analysis of extracted email attachments:
 from email.message import EmailMessage, Message
 import io
 from pathlib import Path
-import re
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 import zipfile
 
 from modules.sender_identity.models import Entity, Relationship
-from .extractor import AttachmentExtractor, extract_attachments
+from .extractor import extract_attachments
 from .models import (
     ArchiveMetadata,
     AttachmentAssessment,
@@ -896,7 +895,6 @@ class StaticAttachmentAnalyzer:
                 inspect_names = namelist[: self.max_archive_members]
 
                 for name in inspect_names:
-                    lower_name = name.lower()
                     # Check member extension
                     m_ext = Path(name).suffix.lower()
 

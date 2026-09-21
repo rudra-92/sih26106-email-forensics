@@ -9,9 +9,9 @@ claims or ML models are implied.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
-from .normalizer import NormalizedDomain, normalize_domain
+from .normalizer import normalize_domain
 
 
 @dataclass(frozen=True)

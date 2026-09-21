@@ -9,7 +9,7 @@ Design Constraints:
 - Extensible boundary for future similarity analysis and graph integration.
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 import json
 import logging
 from pathlib import Path

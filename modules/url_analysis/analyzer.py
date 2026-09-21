@@ -15,29 +15,20 @@ Performs deterministic, non-network structural inspection:
 12. Static tabular feature extraction for future ML classifier
 """
 
-from dataclasses import dataclass
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
-from urllib.parse import unquote
 
-from modules.lookalike_domain import (
-    CandidateResult,
-    find_similarity_candidates,
-    load_reference_domains,
-    normalize_domain,
-)
+from modules.lookalike_domain import find_similarity_candidates
 from modules.sender_identity.models import Entity, Relationship
 
-from .extractor import _URL_REGEX, UrlExtractor, extract_urls
+from .extractor import _URL_REGEX, extract_urls
 from .models import (
-    ExtractedUrl,
-    NormalizedUrl,
     UrlAnalysisAssessment,
     UrlAnalysisReport,
     UrlMlFeatures,
     UrlObservation,
 )
-from .normalizer import DEFAULT_PORTS, is_ip_address, normalize_url
+from .normalizer import DEFAULT_PORTS, normalize_url
 
 # Sensitive keywords commonly abused in phishing / credential harvesting paths
 SENSITIVE_PATH_KEYWORDS = {

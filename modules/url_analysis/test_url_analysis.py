@@ -31,9 +31,6 @@ Tests:
 import unittest
 
 from modules.url_analysis import (
-    ExtractedUrl,
-    NormalizedUrl,
-    StaticUrlAnalyzer,
     analyze_urls,
     extract_urls,
     normalize_url,
@@ -294,7 +291,7 @@ class TestMlFeaturesAndDeterminism(unittest.TestCase):
         report = analyze_urls(content, email_id="E001")
 
         high_sev = [o for o in report.observations if o.severity == "high"]
-        med_sev = [o for o in observations if o.severity == "medium"] if False else [o for o in report.observations if o.severity == "medium"]
+        med_sev = [o for o in report.observations if o.severity == "medium"]
 
         if high_sev:
             expected_prefix = f"URL structural analysis detected {len(high_sev)} high-severity anomaly indicator(s)"

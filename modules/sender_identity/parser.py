@@ -134,14 +134,14 @@ class SenderIdentityParser:
             return None, None, None
 
         name, addr = parseaddr(header_str)
-        name = name.strip().strip('"').strip("'") if name else None
-        addr = addr.strip().lower() if addr else None
+        clean_name: Optional[str] = name.strip().strip('"').strip("'") if name else None
+        clean_addr: Optional[str] = addr.strip().lower() if addr else None
 
         domain: Optional[str] = None
-        if addr and "@" in addr:
-            domain = addr.split("@", 1)[1].strip().lower()
+        if clean_addr and "@" in clean_addr:
+            domain = clean_addr.split("@", 1)[1].strip().lower()
 
-        return (name if name else None), (addr if addr else None), domain
+        return (clean_name if clean_name else None), (clean_addr if clean_addr else None), domain
 
     def _parse_message_id(self, message_id_val: Optional[Any]) -> Tuple[Optional[str], Optional[str]]:
         """Extract clean Message-ID and its domain."""

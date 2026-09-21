@@ -16,13 +16,10 @@ Covers the 10 specified test cases:
 import unittest
 
 from modules.lookalike_domain import (
-    CandidateResult,
     compute_domain_similarity,
     validate_candidate_context,
 )
 from modules.sender_identity.models import (
-    Assessment,
-    AuthResults,
     Entity,
     Observation,
     SenderIdentityReport,

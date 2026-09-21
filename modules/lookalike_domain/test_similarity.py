@@ -14,15 +14,11 @@ Tests:
 import unittest
 
 from modules.lookalike_domain import (
-    CandidateResult,
-    SimilaritySignals,
     compute_domain_similarity,
     damerau_levenshtein_distance,
     find_similarity_candidates,
     generate_synthetic_variants,
     jaro_winkler_similarity,
-    load_reference_domains,
-    normalize_domain,
 )
 from modules.sender_identity.models import Entity
 

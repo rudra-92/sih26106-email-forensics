@@ -19,12 +19,11 @@ Constraints:
 - Produces candidate investigation scores (0.0 to 1.0), NOT malicious verdicts.
 """
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 import logging
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from .normalizer import (
-    DomainNormalizationError,
     NormalizedDomain,
     load_reference_domains,
     normalize_domain,
