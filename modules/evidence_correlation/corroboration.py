@@ -201,17 +201,60 @@ class CorroborationEngine:
             if has_ml_phishing:
                 modules.append("external_ml")
 
+            if has_domain_deception:
+                finding_desc = (
+                    "An identified lookalike/impersonation domain "
+                    "corroborates with the external ML threat classifier "
+                    "and/or structural URL deception, indicating an active "
+                    "phishing vector."
+                )
+            else:
+                anomalies: List[str] = []
+                if has_url_mismatch:
+                    anomalies.append("Structural URL deception")
+                if has_sender_anomaly:
+                    sender_txt = (
+                        "sender identity anomalies"
+                        if anomalies
+                        else "Sender identity anomalies"
+                    )
+                    anomalies.append(sender_txt)
+
+                anomaly_str = (
+                    " and ".join(anomalies)
+                    if anomalies
+                    else "Observed indicators"
+                )
+                verb = "corroborate" if len(anomalies) > 1 else "corroborates"
+
+                if has_ml_phishing:
+                    finding_desc = (
+                        f"{anomaly_str} {verb} with the external ML threat "
+                        f"classifier, indicating an active phishing vector."
+                    )
+                else:
+                    indic_verb = (
+                        "indicate" if len(anomalies) > 1 else "indicates"
+                    )
+                    finding_desc = (
+                        f"{anomaly_str} {indic_verb} an active "
+                        f"phishing vector."
+                    )
+
+            support_strength = (
+                "critical"
+                if (has_domain_deception and has_ml_phishing)
+                else "high"
+            )
+
             return CorroboratedFinding(
                 finding_id=self._next_id(),
                 finding_type="correlated_credential_phishing",
                 title="Correlated Credential Phishing Attack Vectors",
-                description=(
-                    "Identified lookalike/impersonation domain corroborates with external ML threat classifier "
-                    "or structural URL deception, indicating an active phishing vector."
-                ),
+                description=finding_desc,
                 supporting_evidence_ids=supporting_eids,
                 source_modules=modules,
-                heuristic_support_strength="critical" if (has_domain_deception and has_ml_phishing) else "high",
+                heuristic_support_strength=support_strength,
                 confidence_metric="heuristic_non_calibrated_consensus",
             )
         return None

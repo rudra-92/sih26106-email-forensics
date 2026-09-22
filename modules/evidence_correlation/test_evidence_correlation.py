@@ -1433,6 +1433,167 @@ class TestEvidenceCorrelation(unittest.TestCase):
         hypo_types = [h.hypothesis_type for h in case.hypotheses]
         self.assertNotIn("possible_anonymized_infrastructure", hypo_types)
 
+    def test_regression_6_credential_phishing_wording_negative_lookalike(
+        self,
+    ) -> None:
+        """6. CREDENTIAL PHISHING WORDING (NEGATIVE LOOKALIKE)."""
+        from pathlib import Path
+        from backend.services.pipeline_runner import PipelineRunner
+
+        fixture_path = Path("ml/validation/forensic/reply_to_spoof.eml")
+        runner = PipelineRunner()
+        results = runner.run_pipeline(
+            email_path=fixture_path, case_id="CASE-REPLY-SPOOF-WORDING"
+        )
+
+        full_case = results["full_case_dict"]
+
+        # 1. Verify candidate=False in lookalike evidence
+        lookalike_ev = [
+            e
+            for e in full_case.get("evidence", [])
+            if e.get("source_module") == "lookalike_domain"
+        ]
+        rejected_cand = [
+            e
+            for e in lookalike_ev
+            if e.get("rule_id") == "RULE-LOOKALIKE-REJECTED-CANDIDATE"
+        ]
+        self.assertGreaterEqual(len(rejected_cand), 1)
+        self.assertFalse(
+            rejected_cand[0].get("supporting_fields", {}).get("candidate")
+        )
+
+        # 2. No possible_domain_impersonation hypothesis
+        hypo_types = [
+            h.get("hypothesis_type")
+            for h in full_case.get("hypotheses", [])
+        ]
+        self.assertNotIn("possible_domain_impersonation", hypo_types)
+
+        # 3. No resembles relationship
+        rel_types = [
+            r.get("relationship_type")
+            for r in full_case.get("relationships", [])
+        ]
+        self.assertNotIn("resembles", rel_types)
+        self.assertNotIn("impersonates", rel_types)
+
+        # 4. correlated_credential_phishing finding exists
+        corr_findings = [
+            f
+            for f in full_case.get("correlated_findings", [])
+            if f.get("finding_type") == "correlated_credential_phishing"
+        ]
+        self.assertEqual(len(corr_findings), 1)
+        finding_desc = corr_findings[0].get("description", "")
+
+        # 5. Must NOT contain lookalike / impersonation domain / deception
+        lower_desc = finding_desc.lower()
+        self.assertNotIn("lookalike", lower_desc)
+        self.assertNotIn("impersonation domain", lower_desc)
+        self.assertNotIn("domain deception", lower_desc)
+
+        # 6. Must accurately state actual triggering anomalies
+        self.assertIn("Structural URL deception", finding_desc)
+        self.assertIn("sender identity anomalies", finding_desc)
+        self.assertIn("external ML threat classifier", finding_desc)
+
+    def test_regression_7_credential_phishing_wording_positive_lookalike(
+        self,
+    ) -> None:
+        """7. CREDENTIAL PHISHING WORDING (POSITIVE LOOKALIKE)."""
+        payload = self._sample_real_fusion_payload()
+        m1_dict = {
+            "entities": [
+                {"type": "email_address", "value": "security@paypal.com"},
+                {"type": "domain", "value": "paypa1.com"},
+            ],
+            "observations": [
+                {
+                    "rule_id": "RULE-ID-REPLY-TO-MISMATCH",
+                    "severity": "high",
+                    "description": (
+                        "Reply-To divergence: "
+                        "user@paypa1.com vs user@paypal.com"
+                    ),
+                    "evidence": {},
+                }
+            ],
+        }
+        m2_dict = {
+            "observed_domain": "paypa1.com",
+            "reference_domain": "paypal.com",
+            "candidate_score": 0.91,
+            "candidate": True,
+            "is_candidate": True,
+            "is_lookalike": True,
+            "category": "homoglyph_attack",
+            "evidence_strength": "strong",
+            "positive_evidence": [
+                {
+                    "rule_id": "RULE-LOOKALIKE-MATCH",
+                    "severity": "high",
+                    "description": (
+                        "Domain paypa1.com resembles paypal.com "
+                        "via homoglyph substitution"
+                    ),
+                    "evidence": {},
+                }
+            ],
+            "negative_evidence": [],
+            "hypotheses": [
+                {
+                    "hypothesis": "possible_domain_impersonation",
+                    "confidence": 0.88,
+                    "evidence_strength": "strong",
+                    "reason": "Homoglyph variation targets reference domain.",
+                }
+            ],
+        }
+        m3_dict = {
+            "extracted_urls": ["http://paypa1.com/secure/login"],
+            "total_urls": 1,
+            "observations": [
+                {
+                    "observation_id": "OBS-URL-002",
+                    "rule_id": "RULE-URL-LOGIN-TOKEN",
+                    "severity": "high",
+                    "description": (
+                        "Suspicious login credential harvesting URL path"
+                    ),
+                    "evidence": {"has_login": True},
+                }
+            ],
+        }
+
+        case = correlate_evidence(
+            email_id="CASE-LOOKALIKE-POS-WORDING-001",
+            module1_report=m1_dict,
+            module2_report=m2_dict,
+            module3_report=m3_dict,
+            ml_fusion_prediction=payload,
+        )
+
+        # 1. Impersonation behavior unchanged
+        hypo_types = [h.hypothesis_type for h in case.hypotheses]
+        self.assertIn("possible_domain_impersonation", hypo_types)
+
+        resembles_rels = [
+            r for r in case.relationships if r.relationship_type == "resembles"
+        ]
+        self.assertGreaterEqual(len(resembles_rels), 1)
+
+        # 2. Finding description mentions lookalike / impersonation domain
+        corr_findings = [
+            f
+            for f in case.correlated_findings
+            if f.finding_type == "correlated_credential_phishing"
+        ]
+        self.assertEqual(len(corr_findings), 1)
+        finding_desc = corr_findings[0].description
+        self.assertIn("lookalike/impersonation domain", finding_desc)
+
 
 if __name__ == "__main__":
     unittest.main()
