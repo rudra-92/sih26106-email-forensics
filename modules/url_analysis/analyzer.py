@@ -15,10 +15,14 @@ Performs deterministic, non-network structural inspection:
 12. Static tabular feature extraction for future ML classifier
 """
 
+from email.utils import parseaddr
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-from modules.lookalike_domain import find_similarity_candidates
+from modules.lookalike_domain import (
+    extract_brand_from_display_name,
+    find_similarity_candidates,
+)
 from modules.sender_identity.models import Entity, Relationship
 
 from .extractor import _URL_REGEX, extract_urls
@@ -71,17 +75,32 @@ class StaticUrlAnalyzer:
         self,
         content: Union[str, bytes, Dict[str, Any], Any],
         email_id: str = "E001",
+        claimed_brand: Optional[str] = None,
+        display_name: Optional[str] = None,
     ) -> UrlAnalysisReport:
         """Run complete static forensic URL analysis on input content.
 
         Args:
             content: Raw text, HTML, dictionary payload, or email body.
             email_id: Forensic email identifier for graph provenance.
+            claimed_brand: Optional claimed protected brand name.
+            display_name: Optional sender display name string.
 
         Returns:
             UrlAnalysisReport containing extracted URLs, structural observations,
             graph entities/relationships, ML features, and bounded assessment.
         """
+        if not display_name and isinstance(content, str):
+            for line in content.splitlines()[:50]:
+                if line.lower().startswith("from:"):
+                    disp, _ = parseaddr(line[5:].strip())
+                    if disp:
+                        display_name = disp.strip()
+                    break
+
+        if not claimed_brand and display_name:
+            claimed_brand = extract_brand_from_display_name(display_name)
+
         extracted_list = extract_urls(content)
 
         if not extracted_list:
@@ -421,6 +440,8 @@ class StaticUrlAnalyzer:
                         reference_domains=self._reference_domains,
                         threshold=0.80,
                         limit=1,
+                        claimed_brand=claimed_brand,
+                        display_name=display_name,
                     )
                     if candidates:
                         best_cand = candidates[0]
@@ -444,6 +465,9 @@ class StaticUrlAnalyzer:
                                         "reference_domain": best_cand.reference_domain,
                                         "candidate_score": best_cand.candidate_score,
                                         "similarity_reason": best_cand.reason,
+                                        "observed_token": getattr(best_cand, "observed_token", None),
+                                        "target_brand": getattr(best_cand, "target_brand", None),
+                                        "claimed_brand": claimed_brand,
                                     },
                                     fact_type="inferred",
                                 )
@@ -533,7 +557,14 @@ def analyze_urls(
     content: Union[str, bytes, Dict[str, Any], Any],
     email_id: str = "E001",
     reference_domains: Optional[List[str]] = None,
+    claimed_brand: Optional[str] = None,
+    display_name: Optional[str] = None,
 ) -> UrlAnalysisReport:
     """Convenience function to run static forensic URL analysis on email content."""
     analyzer = StaticUrlAnalyzer(reference_domains=reference_domains)
-    return analyzer.analyze(content, email_id=email_id)
+    return analyzer.analyze(
+        content,
+        email_id=email_id,
+        claimed_brand=claimed_brand,
+        display_name=display_name,
+    )

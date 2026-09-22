@@ -14,9 +14,11 @@ Key Principles:
 """
 
 from dataclasses import asdict, dataclass
+from email.utils import parseaddr
 import logging
 from typing import Any, Dict, List, Optional, Set, Union
 
+from .normalizer import extract_brand_from_display_name
 from .similarity import CandidateResult
 
 logger = logging.getLogger(__name__)
@@ -139,6 +141,13 @@ def _extract_module1_evidence(sender_identity: Optional[Any]) -> Dict[str, Any]:
     # If sender_identity is a dict
     if isinstance(sender_identity, dict):
         extracted["email_id"] = sender_identity.get("email_id", "E001")
+        if sender_identity.get("display_name"):
+            extracted["display_name"] = str(sender_identity["display_name"]).strip()
+        elif sender_identity.get("from_raw"):
+            disp, _ = parseaddr(str(sender_identity["from_raw"]))
+            if disp:
+                extracted["display_name"] = disp.strip()
+
         # Extract observations
         obs_list = sender_identity.get("observations", [])
         extracted["m1_observations"] = obs_list
@@ -163,7 +172,7 @@ def _extract_module1_evidence(sender_identity: Optional[Any]) -> Dict[str, Any]:
                 elif t == "ip" and ent.get("attributes", {}).get("role") == "peer_ip":
                     extracted["peer_ip"] = val
 
-        # Extract auth results from observations if present
+        # Extract auth and display results from observations if present
         for o in obs_list:
             if isinstance(o, dict):
                 ev = o.get("evidence", {})
@@ -179,10 +188,23 @@ def _extract_module1_evidence(sender_identity: Optional[Any]) -> Dict[str, Any]:
                     extracted["dkim_result"] = str(ev.get("dkim")).lower()
                 if "dmarc" in ev and not extracted["dmarc_result"]:
                     extracted["dmarc_result"] = str(ev.get("dmarc")).lower()
+                if "display_name" in ev and not extracted["display_name"]:
+                    extracted["display_name"] = str(ev["display_name"]).strip()
+                if "from_raw" in ev and not extracted["display_name"]:
+                    disp, _ = parseaddr(str(ev["from_raw"]))
+                    if disp:
+                        extracted["display_name"] = disp.strip()
 
     # If sender_identity is an object (SenderIdentityReport)
     elif hasattr(sender_identity, "observations"):
         extracted["email_id"] = getattr(sender_identity, "email_id", "E001")
+        if getattr(sender_identity, "display_name", None):
+            extracted["display_name"] = str(sender_identity.display_name).strip()
+        elif getattr(sender_identity, "from_raw", None):
+            disp, _ = parseaddr(str(sender_identity.from_raw))
+            if disp:
+                extracted["display_name"] = disp.strip()
+
         obs_list = getattr(sender_identity, "observations", [])
         extracted["m1_observations"] = obs_list
         extracted["m1_observation_ids"] = [
@@ -221,6 +243,12 @@ def _extract_module1_evidence(sender_identity: Optional[Any]) -> Dict[str, Any]:
                     extracted["dkim_result"] = str(ev.get("dkim")).lower()
                 if "dmarc" in ev and not extracted["dmarc_result"]:
                     extracted["dmarc_result"] = str(ev.get("dmarc")).lower()
+                if "display_name" in ev and not extracted["display_name"]:
+                    extracted["display_name"] = str(ev["display_name"]).strip()
+                if "from_raw" in ev and not extracted["display_name"]:
+                    disp, _ = parseaddr(str(ev["from_raw"]))
+                    if disp:
+                        extracted["display_name"] = disp.strip()
 
     return extracted
 
@@ -256,16 +284,30 @@ def validate_candidate_context(
         candidate_score = float(candidate.get("candidate_score", 0.0))
         is_candidate = bool(candidate.get("candidate", False))
         candidate_reason = candidate.get("reason", "")
+        observed_token = candidate.get("observed_token")
+        target_brand = candidate.get("target_brand")
+        claimed_brand = candidate.get("claimed_brand")
     else:
         obs_domain = candidate.observed_domain
         ref_domain = candidate.reference_domain
         candidate_score = float(candidate.candidate_score)
         is_candidate = bool(candidate.candidate)
         candidate_reason = candidate.reason
+        observed_token = getattr(candidate, "observed_token", None)
+        target_brand = getattr(candidate, "target_brand", None)
+        claimed_brand = getattr(candidate, "claimed_brand", None)
 
     trusted_set = set(d.lower() for d in trusted_domains) if trusted_domains else set()
     m1 = _extract_module1_evidence(sender_identity)
     email_id = m1["email_id"]
+
+    # Deduce missing brand context if available from display name or domain labels
+    if not claimed_brand and m1.get("display_name"):
+        claimed_brand = extract_brand_from_display_name(m1["display_name"])
+    if not target_brand and ref_domain:
+        target_brand = ref_domain.split(".")[0]
+    if not observed_token and obs_domain:
+        observed_token = obs_domain.split(".")[0]
 
     pos_evidence: List[ContextualObservation] = []
     neg_evidence: List[ContextualObservation] = []
@@ -303,27 +345,87 @@ def validate_candidate_context(
             validated_relationships=[],
         )
 
-    # Record baseline candidate similarity observation
+    # Record baseline candidate similarity observation preserving complete forensic provenance
+    brand_desc = (
+        f"Observed domain '{obs_domain}' (token '{observed_token}') resembles reference "
+        f"brand '{target_brand}' ({ref_domain}) with candidate score {candidate_score:.4f} "
+        f"({candidate_reason})."
+    )
     base_obs = ContextualObservation(
         observation_id=_next_obs_id(),
         rule_id="RULE-LOOKALIKE-CANDIDATE-DETECTED",
         source_module="lookalike_domain",
         input_evidence_ids=[],
-        description=(
-            f"Observed domain '{obs_domain}' resembles reference domain '{ref_domain}' "
-            f"with candidate score {candidate_score:.4f} ({candidate_reason})."
-        ),
+        description=brand_desc,
         severity="medium" if candidate_score < 0.85 else "high",
         polarity="positive",
         fact_type="inferred",
         evidence={
+            "evidence_id": f"EVID-M2-{obs_domain}-{ref_domain}",
+            "source_module": "lookalike_domain",
+            "rule_id": "RULE-LOOKALIKE-CANDIDATE-DETECTED",
             "observed_domain": obs_domain,
+            "observed_token": observed_token,
+            "claimed_brand": claimed_brand,
+            "reference_brand": target_brand,
             "reference_domain": ref_domain,
-            "candidate_score": candidate_score,
+            "similarity_score": candidate_score,
+            "candidate_state": is_candidate,
             "similarity_reason": candidate_reason,
+            "trust_provenance": "bundled_reference_store",
         },
     )
     pos_evidence.append(base_obs)
+
+    # -------------------------------------------------------------------------
+    # Context Rule 0: Display Name Brand Alignment
+    # -------------------------------------------------------------------------
+    has_display_brand_alignment = False
+    display_name = m1.get("display_name")
+    if (
+        claimed_brand
+        and target_brand
+        and (
+            claimed_brand.lower() == target_brand.lower()
+            or claimed_brand.lower() in target_brand.lower()
+            or target_brand.lower() in claimed_brand.lower()
+        )
+    ):
+        has_display_brand_alignment = True
+        disp_m1_ids = [
+            oid for oid in m1["m1_observation_ids"]
+            if any(term in oid for term in ("DISPLAY", "FROM"))
+        ]
+        disp_obs = ContextualObservation(
+            observation_id=_next_obs_id(),
+            rule_id="RULE-LOOKALIKE-DISPLAY-NAME-BRAND-ALIGNMENT",
+            source_module="lookalike_domain",
+            input_evidence_ids=disp_m1_ids,
+            description=(
+                f"Sender display name '{display_name or claimed_brand}' claims brand '{claimed_brand}', "
+                f"which aligns with protected reference brand '{target_brand}' ({ref_domain}) "
+                f"resembled by observed token '{observed_token}' in domain '{obs_domain}'. "
+                "Contextual evidence corroborates potential brand impersonation."
+            ),
+            severity="high" if candidate_score >= 0.80 else "medium",
+            polarity="positive",
+            fact_type="observed",
+            evidence={
+                "evidence_id": f"EVID-M2-CTX-DISPLAY-{obs_domain}",
+                "source_module": "lookalike_domain",
+                "rule_id": "RULE-LOOKALIKE-DISPLAY-NAME-BRAND-ALIGNMENT",
+                "observed_domain": obs_domain,
+                "observed_token": observed_token,
+                "claimed_brand": claimed_brand,
+                "display_name": display_name,
+                "reference_brand": target_brand,
+                "reference_domain": ref_domain,
+                "similarity_score": candidate_score,
+                "candidate_state": is_candidate,
+                "trust_provenance": "header_from_display_name",
+            },
+        )
+        pos_evidence.append(disp_obs)
 
     # -------------------------------------------------------------------------
     # Context Rule 1: Trusted / Known-Domain Exception
@@ -527,11 +629,12 @@ def validate_candidate_context(
     # Hypothesis Formulation & Competing Forensic Evaluation
     # -------------------------------------------------------------------------
     # 1. Hypothesis: possible_domain_impersonation
-    # Supported by: high similarity + auth failures and/or reply-to mismatch
+    # Supported by: high similarity + auth failures, reply-to mismatch, or display name brand alignment
     impers_supporting = [
         o.observation_id for o in pos_evidence
         if o.rule_id in (
             "RULE-LOOKALIKE-CANDIDATE-DETECTED",
+            "RULE-LOOKALIKE-DISPLAY-NAME-BRAND-ALIGNMENT",
             "RULE-LOOKALIKE-AUTH-FAILURE-CLUSTER",
             "RULE-LOOKALIKE-REPLYTO-DIVERGENCE",
             "RULE-LOOKALIKE-ROUTING-MISMATCH",
@@ -547,14 +650,18 @@ def validate_candidate_context(
         conf_impers = 0.15
         strength_impers = "none"
         reason_impers = "Domain is explicitly configured as trusted."
-    elif has_auth_fail and has_replyto_mismatch:
+    elif (has_auth_fail and has_replyto_mismatch) or (has_display_brand_alignment and (has_auth_fail or has_replyto_mismatch)):
         conf_impers = min(MAX_CONFIDENCE, 0.70 + (candidate_score * 0.15) + 0.08)
         strength_impers = "strong"
-        reason_impers = "High domain similarity coupled with reported authentication failures and Reply-To divergence."
+        reason_impers = "High domain similarity coupled with reported authentication failures, display name alignment, or Reply-To divergence."
     elif has_auth_fail or has_replyto_mismatch:
         conf_impers = min(MAX_CONFIDENCE, 0.65 + (candidate_score * 0.15))
         strength_impers = "moderate"
         reason_impers = "Domain similarity combined with authentication failure or identity inconsistency."
+    elif has_display_brand_alignment:
+        conf_impers = min(MAX_CONFIDENCE, 0.60 + (candidate_score * 0.15))
+        strength_impers = "moderate"
+        reason_impers = f"Domain token '{observed_token}' resembles protected brand '{target_brand}' with corroborating claimed brand '{claimed_brand}' in display name."
     else:
         conf_impers = 0.40
         strength_impers = "weak"

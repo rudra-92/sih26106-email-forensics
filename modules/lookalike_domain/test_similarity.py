@@ -261,5 +261,82 @@ class TestSyntheticEvaluationFixture(unittest.TestCase):
         self.assertIn("tld_variation", types)
 
 
+class TestBrandAwareLookalikeRegression(unittest.TestCase):
+    """Regression test suite for brand-aware lookalike domain detection and synthetic isolation."""
+
+    def test_paypal_synthetic_phishing_isolated_from_example(self):
+        """Case A: paypa1.example.test + 'PayPal Security' -> compares against paypal, NOT example.com."""
+        candidates = find_similarity_candidates(
+            observed="paypa1.example.test",
+            display_name="PayPal Security",
+            threshold=0.80,
+        )
+        self.assertGreaterEqual(len(candidates), 1)
+        top = candidates[0]
+        self.assertEqual(top.reference_domain, "paypal.com")
+        self.assertEqual(top.target_brand, "paypal")
+        self.assertEqual(top.observed_token, "paypa1")
+        self.assertEqual(top.claimed_brand, "paypal")
+        self.assertTrue(top.candidate)
+        self.assertGreaterEqual(top.candidate_score, 0.80)
+
+        # example.com or example.test must NEVER appear as candidate
+        ref_domains = [c.reference_domain for c in candidates]
+        self.assertNotIn("example.com", ref_domains)
+        self.assertNotIn("example.test", ref_domains)
+
+    def test_microsoft_synthetic_phishing(self):
+        """Case B: micros0ft.example.test + 'Microsoft Support' -> compares against microsoft."""
+        candidates = find_similarity_candidates(
+            observed="micros0ft.example.test",
+            display_name="Microsoft Support",
+            threshold=0.80,
+        )
+        self.assertGreaterEqual(len(candidates), 1)
+        top = candidates[0]
+        self.assertEqual(top.reference_domain, "microsoft.com")
+        self.assertEqual(top.target_brand, "microsoft")
+        self.assertEqual(top.observed_token, "micros0ft")
+        self.assertTrue(top.candidate)
+        self.assertGreaterEqual(top.candidate_score, 0.80)
+
+    def test_legitimate_internshala_no_false_lookalike(self):
+        """Case C: mail.internshala.com -> legitimate domain must not produce lookalike findings."""
+        candidates = find_similarity_candidates(
+            observed="mail.internshala.com",
+            threshold=0.80,
+        )
+        self.assertEqual(len(candidates), 0)
+
+    def test_unknown_synthetic_no_forced_mapping(self):
+        """Case D: random.example.test -> no forced example.com mapping or candidate generation."""
+        candidates = find_similarity_candidates(
+            observed="random.example.test",
+            threshold=0.80,
+        )
+        self.assertEqual(len(candidates), 0)
+        # Even with return_all=True, example.com must not be present
+        all_candidates = find_similarity_candidates(
+            observed="random.example.test",
+            return_all=True,
+        )
+        for c in all_candidates:
+            self.assertFalse(c.candidate)
+            self.assertNotEqual(c.reference_domain, "example.com")
+            self.assertNotEqual(c.reference_domain, "example.test")
+
+    def test_synthetic_domain_reference_rejected(self):
+        """Case E: example.test / example.com treated as synthetic infrastructure, not protected org."""
+        res_test = compute_domain_similarity("paypa1.com", "example.test")
+        self.assertFalse(res_test.candidate)
+        self.assertEqual(res_test.candidate_score, 0.0)
+        self.assertIn("synthetic/test infrastructure", res_test.reason)
+
+        res_com = compute_domain_similarity("paypa1.example.test", "example.com")
+        self.assertFalse(res_com.candidate)
+        self.assertEqual(res_com.candidate_score, 0.0)
+        self.assertIn("synthetic/test infrastructure", res_com.reason)
+
+
 if __name__ == "__main__":
     unittest.main()

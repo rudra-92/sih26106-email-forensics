@@ -9,12 +9,13 @@ Design Constraints:
 - Extensible boundary for future similarity analysis and graph integration.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import ipaddress
 import json
 import logging
 from pathlib import Path
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 import unicodedata
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,8 @@ class NormalizedDomain:
     unicode_form: str
     labels: Tuple[str, ...]
     is_idn: bool
+    canonical_brand: Optional[str] = None
+    brand_aliases: Tuple[str, ...] = field(default_factory=tuple)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to standard dictionary representation."""
@@ -56,10 +59,197 @@ class NormalizedDomain:
             "unicode_form": self.unicode_form,
             "labels": list(self.labels),
             "is_idn": self.is_idn,
+            "canonical_brand": self.canonical_brand,
+            "brand_aliases": list(self.brand_aliases),
         }
 
     def __str__(self) -> str:
         return self.normalized
+
+
+@dataclass(frozen=True)
+class ReferenceBrand:
+    """Canonical representation of a trusted reference brand and domain."""
+    domain: str
+    brand: str
+    aliases: Tuple[str, ...] = ()
+    normalized_domain: Optional["NormalizedDomain"] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "domain": self.domain,
+            "brand": self.brand,
+            "aliases": list(self.aliases),
+        }
+
+
+# =============================================================================
+# RFC / Test Infrastructure Definitions
+# =============================================================================
+SYNTHETIC_TEST_DOMAINS: Set[str] = {
+    "example.com",
+    "example.org",
+    "example.net",
+    "example.edu",
+    "example.test",
+}
+
+SYNTHETIC_TEST_TLDS: Set[str] = {
+    "test",
+    "example",
+    "invalid",
+    "localhost",
+}
+
+SYNTHETIC_NETWORKS = [
+    ipaddress.ip_network("192.0.2.0/24"),      # TEST-NET-1 (RFC 5737)
+    ipaddress.ip_network("198.51.100.0/24"),   # TEST-NET-2 (RFC 5737)
+    ipaddress.ip_network("203.0.113.0/24"),    # TEST-NET-3 (RFC 5737)
+    ipaddress.ip_network("2001:db8::/32"),     # Documentation IPv6 (RFC 3849)
+]
+
+
+def is_synthetic_or_test_domain(domain_input: Union[str, Any]) -> bool:
+    """Check if domain belongs to RFC test / documentation space."""
+    if not domain_input:
+        return False
+    domain_str = getattr(domain_input, "normalized", str(domain_input))
+    clean = domain_str.strip().lower().rstrip(".")
+    if clean in SYNTHETIC_TEST_DOMAINS:
+        return True
+    parts = clean.split(".")
+    if parts and parts[-1] in SYNTHETIC_TEST_TLDS:
+        return True
+    if any(clean == d or clean.endswith("." + d) for d in SYNTHETIC_TEST_DOMAINS):
+        return True
+    return False
+
+
+def is_synthetic_or_test_ip(ip_str: str) -> bool:
+    """Check if IP belongs to RFC 5737 or RFC 3849 documentation space."""
+    if not ip_str or not str(ip_str).strip():
+        return False
+    try:
+        addr = ipaddress.ip_address(str(ip_str).strip())
+        return any(addr in net for net in SYNTHETIC_NETWORKS)
+    except (ValueError, TypeError):
+        return False
+
+
+COMMON_SERVICE_LABELS: Set[str] = {
+    "mail", "email", "webmail", "smtp", "mx", "imap", "pop", "pop3",
+    "ns", "ns1", "ns2", "dns", "www", "www1", "www2", "ftp", "api",
+    "portal", "admin", "gateway", "relay", "direct", "autodiscover",
+    "cpanel", "secure", "app", "login", "auth", "sso", "signin",
+    "static", "cdn", "m", "client", "host", "server", "support",
+}
+
+
+def extract_brand_candidate_tokens(
+    domain_input: Union[str, NormalizedDomain, Any],
+) -> List[str]:
+    """Extract candidate brand-like labels from an observed domain.
+
+    Strips synthetic infrastructure suffixes (e.g. '.example.test'),
+    TLDs, and common service prefixes so that true brand tokens (e.g.
+    'paypa1' from 'paypa1.example.test') are isolated.
+    """
+    if isinstance(domain_input, NormalizedDomain):
+        norm = domain_input
+    else:
+        norm = normalize_domain(domain_input)
+
+    raw_labels = list(norm.labels)
+    if not raw_labels:
+        return []
+
+    # Check if domain has a synthetic / test suffix
+    # e.g. ['paypa1', 'example', 'test'] -> strip ['example', 'test']
+    while len(raw_labels) > 1 and (
+        raw_labels[-1] in SYNTHETIC_TEST_TLDS
+        or f"{raw_labels[-2]}.{raw_labels[-1]}" in SYNTHETIC_TEST_DOMAINS
+    ):
+        if f"{raw_labels[-2]}.{raw_labels[-1]}" in SYNTHETIC_TEST_DOMAINS:
+            raw_labels = raw_labels[:-2]
+            break
+        elif raw_labels[-1] in SYNTHETIC_TEST_TLDS:
+            if len(raw_labels) > 1 and raw_labels[-2] == "example":
+                raw_labels = raw_labels[:-2]
+            else:
+                raw_labels = raw_labels[:-1]
+            break
+
+    if not raw_labels:
+        raw_labels = list(norm.labels)
+
+    if len(raw_labels) >= 2:
+        meaningful_labels = raw_labels[:-1]
+    else:
+        meaningful_labels = raw_labels
+
+    distinctive: List[str] = []
+    for label in meaningful_labels:
+        if label.lower() not in COMMON_SERVICE_LABELS:
+            distinctive.append(label)
+
+    target_labels = distinctive if distinctive else meaningful_labels
+
+    tokens: List[str] = []
+    for lbl in target_labels:
+        clean = lbl.strip().lower()
+        if clean and clean not in tokens:
+            tokens.append(clean)
+
+    return tokens if tokens else [norm.labels[0]]
+
+
+def extract_brand_from_display_name(
+    display_name: Optional[str],
+    known_brands: Optional[Iterable[str]] = None,
+) -> Optional[str]:
+    """Extract a claimed brand name from an email display name string.
+
+    Example:
+        'PayPal Security' -> 'paypal'
+        'Microsoft 365 Support' -> 'microsoft'
+        'Apple Billing Notification' -> 'apple'
+
+    Contextual rule: Display names are unauthenticated, easily spoofed,
+    and must NEVER be treated as authoritative identity.
+    """
+    if not display_name or not str(display_name).strip():
+        return None
+
+    raw = str(display_name).strip().lower()
+    cleaned = re.sub(r"[^\w\s\-]", " ", raw)
+    words = [w.strip() for w in re.split(r"[\s\-]+", cleaned) if w.strip()]
+
+    if not words:
+        return None
+
+    stopwords = {
+        "security", "support", "team", "service", "services", "helpdesk",
+        "desk", "notifications", "notification", "alerts", "alert", "notice",
+        "notices", "customer", "care", "billing", "invoice", "verification",
+        "verify", "update", "updates", "account", "accounts", "center",
+        "centre", "official", "admin", "administrator", "no", "reply",
+        "noreply", "info", "portal", "system", "dept", "department",
+        "office", "mail", "postmaster", "hostmaster", "global", "intl",
+        "international", "secure", "auth", "authentication", "group",
+        "inc", "corp", "corporation", "llc", "ltd", "co", "com", "the",
+    }
+
+    if known_brands:
+        brands_set = {b.lower() for b in known_brands}
+        for w in words:
+            if w in brands_set:
+                return w
+
+    for w in words:
+        if len(w) >= 3 and w not in stopwords and not w.isdigit():
+            return w
+
+    return None
 
 
 # =============================================================================
@@ -303,12 +493,67 @@ def load_reference_domains(
 
     normalized_map: Dict[str, NormalizedDomain] = {}
 
+    # 1. Ingest structured trusted_brands if present
+    brands_list = data.get("trusted_brands", [])
+    if isinstance(brands_list, list):
+        for b_entry in brands_list:
+            if not isinstance(b_entry, dict) or "domain" not in b_entry:
+                continue
+            dom_str = b_entry["domain"]
+            if is_synthetic_or_test_domain(dom_str):
+                continue
+            try:
+                norm = normalize_domain(dom_str)
+                brand_name = b_entry.get("brand") or (
+                    norm.labels[-2] if len(norm.labels) >= 2 else norm.labels[0]
+                )
+                aliases = tuple(b_entry.get("aliases", [brand_name]))
+                populated = NormalizedDomain(
+                    original=norm.original,
+                    normalized=norm.normalized,
+                    ascii_form=norm.ascii_form,
+                    unicode_form=norm.unicode_form,
+                    labels=norm.labels,
+                    is_idn=norm.is_idn,
+                    canonical_brand=brand_name,
+                    brand_aliases=aliases,
+                )
+                normalized_map[populated.normalized] = populated
+            except DomainNormalizationError as err:
+                if on_error == "raise":
+                    raise
+                logger.warning(
+                    "Skipping invalid reference brand domain '%s': %s",
+                    dom_str,
+                    err,
+                )
+
+    # 2. Ingest trusted_domains list
     for entry in raw_list:
+        if is_synthetic_or_test_domain(entry):
+            logger.debug(
+                "Skipping synthetic/test domain '%s' from reference domains.",
+                entry,
+            )
+            continue
         try:
             norm = normalize_domain(entry)
             # Deduplicate by canonical normalized representation
             if norm.normalized not in normalized_map:
-                normalized_map[norm.normalized] = norm
+                inferred_brand = (
+                    norm.labels[-2] if len(norm.labels) >= 2 else norm.labels[0]
+                )
+                populated = NormalizedDomain(
+                    original=norm.original,
+                    normalized=norm.normalized,
+                    ascii_form=norm.ascii_form,
+                    unicode_form=norm.unicode_form,
+                    labels=norm.labels,
+                    is_idn=norm.is_idn,
+                    canonical_brand=inferred_brand,
+                    brand_aliases=(inferred_brand,),
+                )
+                normalized_map[norm.normalized] = populated
         except DomainNormalizationError as err:
             if on_error == "raise":
                 raise DomainNormalizationError(
@@ -323,6 +568,29 @@ def load_reference_domains(
 
     # Return deterministically sorted list by canonical normalized domain string
     return sorted(normalized_map.values(), key=lambda d: d.normalized)
+
+
+def load_reference_brands(
+    config_path: Optional[Union[str, Path]] = None,
+    on_error: str = "raise",
+) -> List[ReferenceBrand]:
+    """Load reference domains structured as ReferenceBrand instances."""
+    domains = load_reference_domains(config_path=config_path, on_error=on_error)
+    brands: List[ReferenceBrand] = []
+    for d in domains:
+        brand = d.canonical_brand or (
+            d.labels[-2] if len(d.labels) >= 2 else d.labels[0]
+        )
+        aliases = d.brand_aliases if d.brand_aliases else (brand,)
+        brands.append(
+            ReferenceBrand(
+                domain=d.normalized,
+                brand=brand,
+                aliases=aliases,
+                normalized_domain=d,
+            )
+        )
+    return sorted(brands, key=lambda b: b.domain)
 
 
 def create_domain_comparison_edge(

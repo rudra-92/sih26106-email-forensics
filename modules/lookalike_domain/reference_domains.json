@@ -1,4 +1,96 @@
 {
+  "trusted_brands": [
+    {
+      "domain": "paypal.com",
+      "brand": "paypal",
+      "aliases": ["paypal", "pay-pal"]
+    },
+    {
+      "domain": "microsoft.com",
+      "brand": "microsoft",
+      "aliases": ["microsoft", "msft", "office365", "m365", "outlook"]
+    },
+    {
+      "domain": "google.com",
+      "brand": "google",
+      "aliases": ["google", "gmail", "workspace"]
+    },
+    {
+      "domain": "apple.com",
+      "brand": "apple",
+      "aliases": ["apple", "icloud"]
+    },
+    {
+      "domain": "amazon.com",
+      "brand": "amazon",
+      "aliases": ["amazon", "aws", "prime"]
+    },
+    {
+      "domain": "netflix.com",
+      "brand": "netflix",
+      "aliases": ["netflix"]
+    },
+    {
+      "domain": "meta.com",
+      "brand": "meta",
+      "aliases": ["meta", "facebook", "instagram"]
+    },
+    {
+      "domain": "facebook.com",
+      "brand": "facebook",
+      "aliases": ["facebook", "meta"]
+    },
+    {
+      "domain": "instagram.com",
+      "brand": "instagram",
+      "aliases": ["instagram"]
+    },
+    {
+      "domain": "chase.com",
+      "brand": "chase",
+      "aliases": ["chase", "jpmorgan"]
+    },
+    {
+      "domain": "bankofamerica.com",
+      "brand": "bankofamerica",
+      "aliases": ["bankofamerica", "bofa"]
+    },
+    {
+      "domain": "wellsfargo.com",
+      "brand": "wellsfargo",
+      "aliases": ["wellsfargo"]
+    },
+    {
+      "domain": "citibank.com",
+      "brand": "citibank",
+      "aliases": ["citibank", "citi"]
+    },
+    {
+      "domain": "dropbox.com",
+      "brand": "dropbox",
+      "aliases": ["dropbox"]
+    },
+    {
+      "domain": "docusign.com",
+      "brand": "docusign",
+      "aliases": ["docusign"]
+    },
+    {
+      "domain": "github.com",
+      "brand": "github",
+      "aliases": ["github"]
+    },
+    {
+      "domain": "linkedin.com",
+      "brand": "linkedin",
+      "aliases": ["linkedin"]
+    },
+    {
+      "domain": "adobe.com",
+      "brand": "adobe",
+      "aliases": ["adobe"]
+    }
+  ],
   "trusted_domains": [
     "adobe.com",
     "adyen.com",
@@ -50,7 +142,6 @@
     "ebay.com",
     "elastic.co",
     "etsy.com",
-    "example.com",
     "expedia.com",
     "facebook.com",
     "fastly.com",

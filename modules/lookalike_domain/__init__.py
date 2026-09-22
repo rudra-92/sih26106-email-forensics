@@ -15,8 +15,14 @@ from .evaluation import SyntheticVariant, generate_synthetic_variants
 from .normalizer import (
     DomainNormalizationError,
     NormalizedDomain,
+    ReferenceBrand,
     RegistrableDomainInfo,
     create_domain_comparison_edge,
+    extract_brand_candidate_tokens,
+    extract_brand_from_display_name,
+    is_synthetic_or_test_domain,
+    is_synthetic_or_test_ip,
+    load_reference_brands,
     load_reference_domains,
     normalize_domain,
 )
@@ -34,8 +40,14 @@ __all__ = [
     # Layer 1
     "DomainNormalizationError",
     "NormalizedDomain",
+    "ReferenceBrand",
     "RegistrableDomainInfo",
     "create_domain_comparison_edge",
+    "extract_brand_candidate_tokens",
+    "extract_brand_from_display_name",
+    "is_synthetic_or_test_domain",
+    "is_synthetic_or_test_ip",
+    "load_reference_brands",
     "load_reference_domains",
     "normalize_domain",
     # Layer 2

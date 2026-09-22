@@ -195,7 +195,8 @@ class TestReferenceDomains(unittest.TestCase):
         self.assertIn("paypal.com", normalized_names)
         self.assertIn("microsoft.com", normalized_names)
         self.assertIn("google.com", normalized_names)
-        self.assertIn("example.com", normalized_names)
+        self.assertIn("amazon.com", normalized_names)
+        self.assertNotIn("example.com", normalized_names)
 
     def test_deterministic_sorting(self):
         domains = load_reference_domains()

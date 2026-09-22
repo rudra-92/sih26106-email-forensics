@@ -25,6 +25,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from .normalizer import (
     NormalizedDomain,
+    extract_brand_candidate_tokens,
+    extract_brand_from_display_name,
+    is_synthetic_or_test_domain,
     load_reference_domains,
     normalize_domain,
 )
@@ -79,6 +82,9 @@ class SimilaritySignals:
     suffix_added: bool
     added_prefix: Optional[str]
     added_suffix: Optional[str]
+    observed_token: Optional[str] = None
+    target_brand: Optional[str] = None
+    claimed_brand: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -97,6 +103,12 @@ class CandidateResult:
     candidate: bool
     signals: SimilaritySignals
     reason: str
+    observed_token: Optional[str] = None
+    target_brand: Optional[str] = None
+    claimed_brand: Optional[str] = None
+    evidence_id: Optional[str] = None
+    rule_id: str = "RULE-LOOKALIKE-CANDIDATE-DETECTED"
+    source_module: str = "lookalike_domain"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -106,6 +118,12 @@ class CandidateResult:
             "candidate": self.candidate,
             "signals": self.signals.to_dict(),
             "reason": self.reason,
+            "observed_token": self.observed_token,
+            "target_brand": self.target_brand,
+            "claimed_brand": self.claimed_brand,
+            "evidence_id": self.evidence_id,
+            "rule_id": self.rule_id,
+            "source_module": self.source_module,
         }
 
 
@@ -400,20 +418,42 @@ def detect_visual_substitution(obs: str, ref: str) -> Dict[str, Any]:
 def extract_signals(
     obs_norm: NormalizedDomain,
     ref_norm: NormalizedDomain,
+    observed_token: Optional[str] = None,
+    target_brand: Optional[str] = None,
+    claimed_brand: Optional[str] = None,
 ) -> SimilaritySignals:
     """Extract all individual forensic similarity signals between observed and reference domains."""
     obs_labels = obs_norm.labels
     ref_labels = ref_norm.labels
 
-    # Base brand label (second-level domain or primary label)
-    obs_base = obs_labels[-2] if len(obs_labels) >= 2 else obs_labels[0]
-    ref_base = ref_labels[-2] if len(ref_labels) >= 2 else ref_labels[0]
+    # Determine observed base label / brand token
+    if observed_token:
+        obs_base = observed_token.lower()
+    else:
+        brand_tokens = extract_brand_candidate_tokens(obs_norm)
+        if brand_tokens:
+            obs_base = brand_tokens[0]
+        else:
+            obs_base = obs_labels[-2] if len(obs_labels) >= 2 else obs_labels[0]
+
+    # Determine reference target brand
+    if target_brand:
+        ref_base = target_brand.lower()
+    elif ref_norm.canonical_brand:
+        ref_base = ref_norm.canonical_brand.lower()
+    else:
+        ref_base = ref_labels[-2] if len(ref_labels) >= 2 else ref_labels[0]
 
     obs_tld = obs_labels[-1] if len(obs_labels) >= 2 else ""
     ref_tld = ref_labels[-1] if len(ref_labels) >= 2 else ""
 
     same_base = (obs_base == ref_base)
-    tld_changed = (obs_tld != ref_tld)
+    # TLD change is only meaningful if neither domain is synthetic test infrastructure
+    tld_changed = (
+        (obs_tld != ref_tld)
+        and not is_synthetic_or_test_domain(obs_norm)
+        and not is_synthetic_or_test_domain(ref_norm)
+    )
 
     # 1. Edit distance on base label
     raw_edit = damerau_levenshtein_distance(obs_base, ref_base)
@@ -457,6 +497,9 @@ def extract_signals(
         suffix_added=token_analysis["suffix_added"],
         added_prefix=token_analysis["added_prefix"],
         added_suffix=token_analysis["added_suffix"],
+        observed_token=obs_base,
+        target_brand=ref_base,
+        claimed_brand=claimed_brand,
     )
 
 
@@ -471,27 +514,32 @@ def compute_candidate_score(
     ---------------------------------------
     The score quantifies morphological resemblance strength without claiming attack probability:
     1. Exact Match: score = 1.0
-    2. Base Lexical Similarity (60% combined):
+    2. Synthetic reference check: synthetic/test infrastructure cannot be a protected organization.
+    3. Base Lexical Similarity (60% combined):
        - 30% Edit Similarity: Measures minimal edit operations on base brand label.
        - 30% Jaro-Winkler Character Similarity: Measures character match density and prefix alignment.
-    3. Mutation Pattern Adjustments (additive, up to +35%):
+    4. Mutation Pattern Adjustments (additive, up to +35%):
        - +25% Digit Substitution: e.g. '0' for 'o', '1' for 'l'/'i' (leetspeak).
        - +20% Character Transposition: e.g. 'payapl' vs 'paypal' (typosquatting).
        - +20% Single Insertion/Deletion: e.g. 'paypall' or 'paypa' vs 'paypal'.
        - +35% TLD Variation on identical base: e.g. 'paypal.net' vs 'paypal.com' -> fixed high base score (0.85).
        - +30% Compound brand affix: e.g. 'paypal-login.com' where reference is intact as prefix/suffix.
-    4. Anti-Inflation Constraint:
+    5. Anti-Inflation Constraint:
        A single metric (e.g. edit distance on short 2-character strings) cannot inflate the score
        without corroborating character or structural alignment.
     """
+    if is_synthetic_or_test_domain(ref_norm):
+        return 0.0, "Reference domain is synthetic/test infrastructure, not a protected organization."
+
     if obs_norm.normalized == ref_norm.normalized:
         return 1.0, "Identical domain match."
 
     # Case A: Same base brand label, different TLD
     if signals.same_base_label and signals.tld_changed:
         score = 0.85
+        brand_name = signals.target_brand or (obs_norm.labels[-2] if len(obs_norm.labels) >= 2 else obs_norm.labels[0])
         reason = (
-            f"Identical base brand name '{obs_norm.labels[-2]}' with TLD variation "
+            f"Identical base brand name '{brand_name}' with TLD variation "
             f"('.{signals.observed_tld}' vs '.{signals.reference_tld}')."
         )
         return round(score, 4), reason
@@ -518,13 +566,13 @@ def compute_candidate_score(
         ref_dg = signals.visual_substitution["reference"]
         reasons.append(f"visual confusable digraph '{obs_dg}' for '{ref_dg}'")
 
-    # Case C: Adjacent transposition
+    # Case D: Adjacent transposition
     if signals.transposition["detected"]:
         bonus += 0.20
         chars = signals.transposition["characters"]
         reasons.append(f"transposed adjacent characters '{chars[0]}' and '{chars[1]}'")
 
-    # Case D: Single insertion or deletion
+    # Case E: Single insertion or deletion
     if signals.insertion_deletion["detected"]:
         bonus += 0.20
         op = signals.insertion_deletion["operation"]
@@ -532,13 +580,15 @@ def compute_candidate_score(
         pos = signals.insertion_deletion["position"]
         reasons.append(f"single character {op} of '{char}' at position {pos}")
 
-    # Case E: Affix addition (prefix/suffix on brand)
+    # Case F: Affix addition (prefix/suffix on brand)
     if signals.prefix_added or signals.suffix_added:
-        ref_b = ref_norm.labels[-2]
-        obs_b = obs_norm.labels[-2]
-        if (ref_b in signals.shared_tokens or
-            ref_b in obs_b or
-            ref_b.replace("-", "") in obs_b.replace("-", "")):
+        ref_b = signals.target_brand or (ref_norm.labels[-2] if len(ref_norm.labels) >= 2 else ref_norm.labels[0])
+        obs_b = signals.observed_token or (obs_norm.labels[-2] if len(obs_norm.labels) >= 2 else obs_norm.labels[0])
+        if (
+            ref_b in signals.shared_tokens
+            or ref_b in obs_b
+            or ref_b.replace("-", "") in obs_b.replace("-", "")
+        ):
             affix_desc = f"prefix '{signals.added_prefix}'" if signals.prefix_added else f"suffix '{signals.added_suffix}'"
             bonus += 0.35
             base_lexical = max(base_lexical, 0.70)
@@ -549,20 +599,24 @@ def compute_candidate_score(
     score = min(1.0, max(0.0, raw_score))
 
     # Formulate human-readable forensic explanation
+    brand_prefix = ""
+    if signals.observed_token and signals.target_brand and signals.observed_token != signals.target_brand:
+        brand_prefix = f"Observed token '{signals.observed_token}' resembles brand '{signals.target_brand}': "
+
     if reasons:
         reason_summary = "; ".join(reasons)
         reason = (
-            f"Resemblance driven by {reason_summary} (edit distance: {signals.raw_edit_distance}, "
+            f"{brand_prefix}Resemblance driven by {reason_summary} (edit distance: {signals.raw_edit_distance}, "
             f"character similarity: {signals.character_similarity:.2f})."
         )
     elif score >= 0.70:
         reason = (
-            f"High lexical similarity (edit distance: {signals.raw_edit_distance}, "
+            f"{brand_prefix}High lexical similarity (edit distance: {signals.raw_edit_distance}, "
             f"character similarity: {signals.character_similarity:.2f})."
         )
     else:
         reason = (
-            f"Low lexical resemblance (edit distance: {signals.raw_edit_distance}, "
+            f"{brand_prefix}Low lexical resemblance (edit distance: {signals.raw_edit_distance}, "
             f"character similarity: {signals.character_similarity:.2f})."
         )
 
@@ -574,29 +628,46 @@ def compute_candidate_score(
 # =============================================================================
 
 
-def _quick_prefilter(obs_norm: NormalizedDomain, ref_norm: NormalizedDomain) -> bool:
+def _quick_prefilter(
+    obs_norm: NormalizedDomain,
+    ref_norm: NormalizedDomain,
+    candidate_tokens: Optional[List[str]] = None,
+) -> bool:
     """Lightweight deterministic filter to bypass expensive signal extraction for unrelated pairs.
 
     Returns True if the pair should be evaluated, False if it can be safely skipped.
     """
-    obs_base = obs_norm.labels[-2] if len(obs_norm.labels) >= 2 else obs_norm.labels[0]
-    ref_base = ref_norm.labels[-2] if len(ref_norm.labels) >= 2 else ref_norm.labels[0]
+    if is_synthetic_or_test_domain(ref_norm):
+        return False
 
-    # Always compare if lengths are close (within 4 characters)
-    len_diff = abs(len(obs_base) - len(ref_base))
-    if len_diff <= 4:
-        return True
+    obs_tokens = candidate_tokens or extract_brand_candidate_tokens(obs_norm)
+    if not obs_tokens:
+        obs_tokens = [obs_norm.labels[-2] if len(obs_norm.labels) >= 2 else obs_norm.labels[0]]
 
-    # If reference base is contained in observed base (e.g. prefix/suffix brand attachment)
-    if ref_base in obs_base or obs_base in ref_base:
-        return True
+    ref_targets: List[str] = []
+    if ref_norm.canonical_brand:
+        ref_targets.append(ref_norm.canonical_brand.lower())
+    for a in ref_norm.brand_aliases:
+        ref_targets.append(a.lower())
+    ref_base = ref_norm.labels[-2].lower() if len(ref_norm.labels) >= 2 else ref_norm.labels[0].lower()
+    if ref_base not in ref_targets:
+        ref_targets.append(ref_base)
 
-    # If they share common 2-grams
-    if len(obs_base) >= 2 and len(ref_base) >= 2:
-        obs_bigrams = {obs_base[i:i+2] for i in range(len(obs_base) - 1)}
-        ref_bigrams = {ref_base[i:i+2] for i in range(len(ref_base) - 1)}
-        if len(obs_bigrams & ref_bigrams) >= 2:
-            return True
+    for tok in obs_tokens:
+        tok_lower = tok.lower()
+        for ref_t in ref_targets:
+            # Length difference within 4 characters
+            if abs(len(tok_lower) - len(ref_t)) <= 4:
+                return True
+            # Substring containment
+            if ref_t in tok_lower or tok_lower in ref_t:
+                return True
+            # Common 2-grams
+            if len(tok_lower) >= 2 and len(ref_t) >= 2:
+                tok_bigrams = {tok_lower[i:i+2] for i in range(len(tok_lower) - 1)}
+                ref_bigrams = {ref_t[i:i+2] for i in range(len(ref_t) - 1)}
+                if len(tok_bigrams & ref_bigrams) >= 2:
+                    return True
 
     return False
 
@@ -605,6 +676,10 @@ def compute_domain_similarity(
     observed: Union[str, NormalizedDomain, Any],
     reference: Union[str, NormalizedDomain, Any],
     threshold: float = 0.80,
+    observed_token: Optional[str] = None,
+    target_brand: Optional[str] = None,
+    claimed_brand: Optional[str] = None,
+    display_name: Optional[str] = None,
 ) -> CandidateResult:
     """Compute forensic similarity signals and candidate status between two domains.
 
@@ -612,6 +687,10 @@ def compute_domain_similarity(
         observed: Raw string, NormalizedDomain, or Module 1 Entity.
         reference: Raw string, NormalizedDomain, or Module 1 Entity.
         threshold: Candidate investigation threshold (default: 0.80).
+        observed_token: Optional specific brand token extracted from observed domain.
+        target_brand: Optional target brand name (e.g. 'paypal').
+        claimed_brand: Optional claimed brand extracted from display name context.
+        display_name: Optional display name string.
 
     Returns:
         CandidateResult containing individual signals, score, candidate flag, and explanation.
@@ -619,7 +698,55 @@ def compute_domain_similarity(
     obs_norm = observed if isinstance(observed, NormalizedDomain) else normalize_domain(observed)
     ref_norm = reference if isinstance(reference, NormalizedDomain) else normalize_domain(reference)
 
-    signals = extract_signals(obs_norm, ref_norm)
+    if display_name and not claimed_brand:
+        claimed_brand = extract_brand_from_display_name(display_name)
+
+    # Synthetic reference protection: synthetic infrastructure cannot be a protected organization
+    if is_synthetic_or_test_domain(ref_norm):
+        obs_tok = observed_token or (obs_norm.labels[-2] if len(obs_norm.labels) >= 2 else obs_norm.labels[0])
+        empty_signals = SimilaritySignals(
+            raw_edit_distance=99,
+            edit_similarity=0.0,
+            character_similarity=0.0,
+            digit_substitution={"detected": False, "changes": []},
+            visual_substitution={"detected": False, "observed": None, "reference": None, "position": None},
+            insertion_deletion={"detected": False, "operation": None, "character": None, "position": None},
+            transposition={"detected": False, "positions": None, "characters": None},
+            token_similarity=0.0,
+            shared_tokens=[],
+            added_tokens=[],
+            same_base_label=False,
+            tld_changed=False,
+            observed_tld=obs_norm.labels[-1] if len(obs_norm.labels) >= 2 else "",
+            reference_tld=ref_norm.labels[-1] if len(ref_norm.labels) >= 2 else "",
+            prefix_added=False,
+            suffix_added=False,
+            added_prefix=None,
+            added_suffix=None,
+            observed_token=obs_tok,
+            target_brand=None,
+            claimed_brand=claimed_brand,
+        )
+        return CandidateResult(
+            observed_domain=obs_norm.normalized,
+            reference_domain=ref_norm.normalized,
+            candidate_score=0.0,
+            candidate=False,
+            signals=empty_signals,
+            reason="Reference domain is synthetic/test infrastructure, not a protected organization.",
+            observed_token=obs_tok,
+            target_brand=None,
+            claimed_brand=claimed_brand,
+            evidence_id=f"EVID-M2-{obs_norm.normalized}-{ref_norm.normalized}",
+        )
+
+    signals = extract_signals(
+        obs_norm,
+        ref_norm,
+        observed_token=observed_token,
+        target_brand=target_brand,
+        claimed_brand=claimed_brand,
+    )
     score, reason = compute_candidate_score(signals, obs_norm, ref_norm)
 
     is_candidate = (score >= threshold)
@@ -631,6 +758,10 @@ def compute_domain_similarity(
         candidate=is_candidate,
         signals=signals,
         reason=reason,
+        observed_token=signals.observed_token,
+        target_brand=signals.target_brand,
+        claimed_brand=claimed_brand,
+        evidence_id=f"EVID-M2-{obs_norm.normalized}-{ref_norm.normalized}",
     )
 
 
@@ -641,6 +772,8 @@ def find_similarity_candidates(
     limit: Optional[int] = None,
     prefilter: bool = True,
     return_all: bool = False,
+    claimed_brand: Optional[str] = None,
+    display_name: Optional[str] = None,
 ) -> List[CandidateResult]:
     """Compare an observed domain against a collection of reference domains and return ranked candidates.
 
@@ -651,11 +784,16 @@ def find_similarity_candidates(
         limit: Optional maximum number of candidates to return.
         prefilter: If True, uses lightweight deterministic pre-filtering to skip distant pairs.
         return_all: If True, returns all scored pairs regardless of threshold (useful for evaluation).
+        claimed_brand: Optional claimed brand extracted from sender display name.
+        display_name: Optional raw display name string.
 
     Returns:
         List of CandidateResult objects ranked in descending order of candidate_score.
     """
     obs_norm = observed if isinstance(observed, NormalizedDomain) else normalize_domain(observed)
+
+    if display_name and not claimed_brand:
+        claimed_brand = extract_brand_from_display_name(display_name)
 
     if reference_domains is None:
         refs = load_reference_domains()
@@ -665,17 +803,57 @@ def find_similarity_candidates(
             for r in reference_domains
         ]
 
+    # Filter out synthetic / documentation reference domains so they can NEVER become protected identities
+    valid_refs = [r for r in refs if not is_synthetic_or_test_domain(r)]
+
+    candidate_tokens = extract_brand_candidate_tokens(obs_norm)
+    if not candidate_tokens:
+        candidate_tokens = [obs_norm.labels[-2] if len(obs_norm.labels) >= 2 else obs_norm.labels[0]]
+
     results: List[CandidateResult] = []
 
-    for ref in refs:
+    for ref in valid_refs:
         # Pre-filtering optimization for multi-reference comparison
-        if prefilter and not _quick_prefilter(obs_norm, ref):
+        if prefilter and not _quick_prefilter(obs_norm, ref, candidate_tokens=candidate_tokens):
             continue
 
-        cand = compute_domain_similarity(obs_norm, ref, threshold=threshold)
+        target_brands: List[str] = []
+        if ref.canonical_brand:
+            target_brands.append(ref.canonical_brand)
+        target_brands.extend(ref.brand_aliases)
+        ref_base = ref.labels[-2] if len(ref.labels) >= 2 else ref.labels[0]
+        if ref_base not in target_brands:
+            target_brands.append(ref_base)
 
-        if return_all or cand.candidate:
-            results.append(cand)
+        best_cand: Optional[CandidateResult] = None
+
+        # Compare each candidate brand token against target brands
+        for tok in candidate_tokens:
+            for tgt in target_brands:
+                cand = compute_domain_similarity(
+                    obs_norm,
+                    ref,
+                    threshold=threshold,
+                    observed_token=tok,
+                    target_brand=tgt,
+                    claimed_brand=claimed_brand,
+                )
+                if best_cand is None or cand.candidate_score > best_cand.candidate_score:
+                    best_cand = cand
+
+        # Also evaluate default base-to-base comparison
+        default_cand = compute_domain_similarity(
+            obs_norm,
+            ref,
+            threshold=threshold,
+            claimed_brand=claimed_brand,
+        )
+        if best_cand is None or default_cand.candidate_score > best_cand.candidate_score:
+            best_cand = default_cand
+
+        if best_cand is not None:
+            if return_all or best_cand.candidate:
+                results.append(best_cand)
 
     # Rank by candidate_score descending; break ties deterministically by reference_domain name
     ranked = sorted(results, key=lambda c: (-c.candidate_score, c.reference_domain))

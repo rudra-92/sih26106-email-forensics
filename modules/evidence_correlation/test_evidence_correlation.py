@@ -1497,7 +1497,8 @@ class TestEvidenceCorrelation(unittest.TestCase):
         # 6. Must accurately state actual triggering anomalies
         self.assertIn("Structural URL deception", finding_desc)
         self.assertIn("sender identity anomalies", finding_desc)
-        self.assertIn("external ML threat classifier", finding_desc)
+        self.assertIn("ML threat classifier", finding_desc)
+        self.assertNotIn("external ML", finding_desc)
 
     def test_regression_7_credential_phishing_wording_positive_lookalike(
         self,
@@ -1593,6 +1594,73 @@ class TestEvidenceCorrelation(unittest.TestCase):
         self.assertEqual(len(corr_findings), 1)
         finding_desc = corr_findings[0].description
         self.assertIn("lookalike/impersonation domain", finding_desc)
+
+    def test_regression_8_synthetic_origin_guard(self) -> None:
+        """8. SYNTHETIC ORIGIN GUARD: Suppress cloud/proxy claims on RFC 5737."""
+        m1_dict = {
+            "observations": [
+                {
+                    "rule_id": "RULE-ID-OBSERVATION",
+                    "severity": "medium",
+                    "description": "Unverified peer transport boundary",
+                }
+            ]
+        }
+        m5_dict = {
+            "origin_assessment": {
+                "earliest_reliable_peer": "198.51.100.99",
+                "source_visibility": "visible",
+                "confidence": 0.85,
+                "assessment_reason": (
+                    "Hop 1 represents earliest reliable external peer "
+                    "(198.51.100.99) (unverified threat actor origin)."
+                ),
+            },
+            "observations": [],
+            "hypotheses": [],
+        }
+        infra_dict = {
+            "target_ip": "198.51.100.99",
+            "is_documentation_ip": True,
+            "is_synthetic_test": True,
+            "hosting_fingerprint": {
+                "classification": "unknown",
+                "provider_name": "Documentation / Synthetic Network",
+            },
+            "observations": [
+                {
+                    "rule_id": "RULE-INFRA-SYNTHETIC-BYPASS",
+                    "severity": "informational",
+                    "description": "IP '198.51.100.99' is a synthetic/test range.",
+                }
+            ],
+        }
+
+        case = correlate_evidence(
+            email_id="CASE-SYNTHETIC-GUARD-001",
+            module1_report=m1_dict,
+            module5_report=m5_dict,
+            infrastructure_intelligence_report=infra_dict,
+        )
+
+        corr_findings = case.correlated_findings
+        # Must NOT classify synthetic test IP as commercial cloud hosting/proxying
+        for f in corr_findings:
+            lower = f.description.lower()
+            self.assertNotIn("commercial cloud hosting", lower)
+            self.assertNotIn("cloud hosting or proxying", lower)
+
+        # Must produce synthetic origin finding with proper wording
+        synth_findings = [
+            f for f in corr_findings
+            if f.finding_type == "synthetic_origin_infrastructure"
+        ]
+        self.assertEqual(len(synth_findings), 1)
+        expected_desc = (
+            "Origin infrastructure is limited to a synthetic/documentation "
+            "test address; no production infrastructure classification is inferred."
+        )
+        self.assertEqual(synth_findings[0].description, expected_desc)
 
 
 if __name__ == "__main__":

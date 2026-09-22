@@ -129,8 +129,11 @@ class CorroborationEngine:
                 finding_type="correlated_identity_deception",
                 title="Correlated Identity Deception Across Sender and Domain",
                 description=(
-                    "Independent evidence from Sender Identity (M1) and Lookalike Domain Detection (M2) "
-                    "corroborates active identity deception through unaligned routing headers and deceptive domain registration."
+                    "Independent evidence from Sender Identity (M1) and "
+                    "Lookalike Domain Detection (M2) corroborates active "
+                    "identity deception through unaligned routing headers "
+                    "and lookalike-domain and sender-identity deception "
+                    "indicators."
                 ),
                 supporting_evidence_ids=supporting_eids,
                 source_modules=modules,
@@ -204,7 +207,7 @@ class CorroborationEngine:
             if has_domain_deception:
                 finding_desc = (
                     "An identified lookalike/impersonation domain "
-                    "corroborates with the external ML threat classifier "
+                    "corroborates with the ML threat classifier "
                     "and/or structural URL deception, indicating an active "
                     "phishing vector."
                 )
@@ -229,7 +232,7 @@ class CorroborationEngine:
 
                 if has_ml_phishing:
                     finding_desc = (
-                        f"{anomaly_str} {verb} with the external ML threat "
+                        f"{anomaly_str} {verb} with the ML threat "
                         f"classifier, indicating an active phishing vector."
                     )
                 else:
@@ -366,27 +369,77 @@ class CorroborationEngine:
                 confidence_metric="heuristic_non_calibrated_consensus",
             )
 
-        # 2. Fallback: M5 cloud/hosting/anonymized origin + M1 unverified earliest peer
+        # 2. Synthetic / Documentation Test Network Guard (RFC 5737 / RFC 3849)
+        # Suppress production-infrastructure classifications, do not create
+        # cloud/proxy claims, and preserve synthetic/documentation semantic.
+        is_synthetic_origin = any(
+            ev.supporting_fields.get("is_documentation_ip")
+            or ev.supporting_fields.get("is_synthetic_test")
+            or ev.supporting_fields.get("infrastructure_classification")
+            == "documentation_test_net"
+            or "documentation/test ip range" in ev.description.lower()
+            for ev in m5_ev
+        ) or any(
+            ev.rule_id == "RULE-INFRA-SYNTHETIC-BYPASS"
+            or ev.supporting_fields.get("is_documentation")
+            or ev.supporting_fields.get("is_synthetic")
+            for ev in infra_ev
+        )
+
+        if is_synthetic_origin:
+            supp_eids = [
+                e.evidence_id
+                for e in m5_ev
+                if e.rule_id == "RULE-ORIGIN-EARLIEST-PEER"
+                or e.supporting_fields.get("is_documentation_ip")
+                or e.supporting_fields.get("is_synthetic_test")
+            ]
+            if not supp_eids:
+                supp_eids = [e.evidence_id for e in m5_ev[:1]] if m5_ev else []
+            return CorroboratedFinding(
+                finding_id=self._next_id(),
+                finding_type="synthetic_origin_infrastructure",
+                title="Synthetic Origin Infrastructure Observation",
+                description=(
+                    "Origin infrastructure is limited to a synthetic/"
+                    "documentation test address; no production "
+                    "infrastructure classification is inferred."
+                ),
+                supporting_evidence_ids=supp_eids,
+                source_modules=["origin_infrastructure"],
+                heuristic_support_strength="informational",
+                confidence_metric="deterministic_rule",
+            )
+
+        # 3. Fallback: M5 cloud/hosting/anonymized origin + M1 unverified peer
         has_m5_hosting = any(
             "hosting" in ev.description.lower()
             or "cloud" in ev.description.lower()
-            or "tor" in ev.description.lower()
+            or " tor " in f" {ev.description.lower()} "
+            or "tor exit" in ev.description.lower()
+            or "vpn" in ev.description.lower()
+            or "proxy" in ev.description.lower()
             for ev in m5_ev
         )
         has_m1_unverified = any(
-            "unverified" in ev.description.lower() or "unaligned" in ev.description.lower()
+            "unverified" in ev.description.lower()
+            or "unaligned" in ev.description.lower()
             for ev in m1_ev
         )
 
         if has_m5_hosting and has_m1_unverified:
-            supp_eids = [e.evidence_id for e in m5_ev[:2]] + [e.evidence_id for e in m1_ev[:2]]
+            supp_eids = (
+                [e.evidence_id for e in m5_ev[:2]]
+                + [e.evidence_id for e in m1_ev[:2]]
+            )
             return CorroboratedFinding(
                 finding_id=self._next_id(),
                 finding_type="correlated_infrastructure_abuse",
                 title="Correlated Infrastructure Abuse & Masking",
                 description=(
-                    "Origin infrastructure demonstrates commercial cloud hosting or proxying coupled with "
-                    "unverified peer transport boundaries."
+                    "Origin infrastructure demonstrates commercial cloud "
+                    "hosting or proxying coupled with unverified peer "
+                    "transport boundaries."
                 ),
                 supporting_evidence_ids=supp_eids,
                 source_modules=["origin_infrastructure", "sender_identity"],

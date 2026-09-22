@@ -329,5 +329,93 @@ class TestContextualValidation(unittest.TestCase):
         self.assertEqual(run1.to_dict(), run2.to_dict())
 
 
+class TestBrandAwareContextRegression(unittest.TestCase):
+    """Regression tests for brand-aware contextual correlation and rejected candidate invariants."""
+
+    def test_paypal_display_name_contextual_alignment(self):
+        """Case A & 10: paypa1.example.test + 'PayPal Security' contextual corroboration."""
+        from modules.lookalike_domain import find_similarity_candidates
+
+        candidates = find_similarity_candidates(
+            observed="paypa1.example.test",
+            display_name="PayPal Security",
+            threshold=0.80,
+        )
+        self.assertGreaterEqual(len(candidates), 1)
+        top = candidates[0]
+        self.assertEqual(top.reference_domain, "paypal.com")
+
+        m1_report = SenderIdentityReport(
+            email_id="E-SIH-PAYPAL",
+            entities=[Entity(type="domain", value="paypa1.example.test", source="From")],
+            observations=[
+                Observation(
+                    observation_id="OBS-DISP-001",
+                    rule_id="RULE-DISPLAY-NAME-PRESENT",
+                    type="display_name_present",
+                    severity="informational",
+                    description="Display name 'PayPal Security' detected",
+                    evidence={"display_name": "PayPal Security", "from_raw": '"PayPal Security" <security@paypa1.example.test>'},
+                    source_header="From",
+                ),
+            ],
+        )
+
+        report = validate_candidate_context(top, m1_report)
+
+        # Must evaluate to possible_domain_impersonation
+        self.assertEqual(report.category, "possible_domain_impersonation")
+        self.assertGreaterEqual(report.confidence, 0.60)
+        self.assertEqual(report.reference_domain, "paypal.com")
+
+        # Must contain RULE-LOOKALIKE-DISPLAY-NAME-BRAND-ALIGNMENT
+        rule_ids = [o.rule_id for o in report.positive_evidence]
+        self.assertIn("RULE-LOOKALIKE-DISPLAY-NAME-BRAND-ALIGNMENT", rule_ids)
+        self.assertIn("RULE-LOOKALIKE-CANDIDATE-DETECTED", rule_ids)
+
+        # Validate Requirement 10: Complete provenance in evidence dictionary
+        base_obs = next(o for o in report.positive_evidence if o.rule_id == "RULE-LOOKALIKE-CANDIDATE-DETECTED")
+        ev = base_obs.evidence
+        self.assertIn("evidence_id", ev)
+        self.assertIn("source_module", ev)
+        self.assertIn("rule_id", ev)
+        self.assertEqual(ev["observed_domain"], "paypa1.example.test")
+        self.assertEqual(ev["observed_token"], "paypa1")
+        self.assertEqual(ev["claimed_brand"], "paypal")
+        self.assertEqual(ev["reference_brand"], "paypal")
+        self.assertEqual(ev["reference_domain"], "paypal.com")
+        self.assertIn("similarity_score", ev)
+        self.assertTrue(ev["candidate_state"])
+        self.assertIn("trust_provenance", ev)
+
+        # Graph relationship: resembles paypal.com, NOT example.com
+        self.assertEqual(len(report.validated_relationships), 1)
+        rel = report.validated_relationships[0]
+        self.assertEqual(rel["source"], "paypa1.example.test")
+        self.assertEqual(rel["relation"], "resembles")
+        self.assertEqual(rel["target"], "paypal.com")
+        self.assertNotEqual(rel["target"], "example.com")
+
+    def test_rejected_candidate_invariant_no_positive_edge(self):
+        """Case F: candidate=False must NOT produce resembles edge or positive corroboration."""
+        from modules.lookalike_domain import compute_domain_similarity
+
+        cand = compute_domain_similarity("paypa1-security.com", "paypal.com", threshold=0.80)
+        # Score is ~0.4083, candidate is False
+        self.assertFalse(cand.candidate)
+
+        m1_report = SenderIdentityReport(
+            email_id="E-REJECTED",
+            entities=[Entity(type="domain", value="paypa1-security.com", source="From")],
+            observations=[],
+        )
+
+        report = validate_candidate_context(cand, m1_report)
+
+        self.assertEqual(report.category, "unlikely_domain_impersonation")
+        self.assertEqual(len(report.positive_evidence), 0)
+        self.assertEqual(len(report.validated_relationships), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -81,10 +81,18 @@ class PipelineRunner:
         domains = [
             e.value for e in m1.entities if getattr(e, "type", "") == "domain"
         ]
+        # Extract display name from m1 observations if available
+        disp_name = None
+        for o in getattr(m1, "observations", []):
+            ev = getattr(o, "evidence", {})
+            if isinstance(ev, dict) and "display_name" in ev:
+                disp_name = ev["display_name"]
+                break
+
         if domains:
             primary_dom = domains[0]
             cand_matches = find_similarity_candidates(
-                primary_dom, return_all=True
+                primary_dom, return_all=True, display_name=disp_name
             )
             top_cand = None
             if cand_matches:
@@ -100,21 +108,21 @@ class PipelineRunner:
                     top_cand = cand_matches[0]
             else:
                 top_cand = compute_domain_similarity(
-                    observed=primary_dom, reference="paypal.com"
+                    observed=primary_dom, reference="paypal.com", display_name=disp_name
                 )
             m2 = validate_candidate_context(
                 candidate=top_cand, sender_identity=m1
             )
         else:
             default_cand = compute_domain_similarity(
-                "example.com", "example.com"
+                "unknown.local", "paypal.com"
             )
             m2 = validate_candidate_context(
                 candidate=default_cand, sender_identity=m1
             )
 
         # 3. Module 3: URL Analysis
-        m3 = analyze_urls(raw_text, email_id=case_id)
+        m3 = analyze_urls(raw_text, email_id=case_id, display_name=disp_name)
 
         # 4. Module 4: Attachment Analysis
         m4 = analyze_attachments(raw_bytes, email_id=case_id)
