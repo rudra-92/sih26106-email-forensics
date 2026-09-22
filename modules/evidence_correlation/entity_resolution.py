@@ -31,6 +31,7 @@ class EntityResolver:
         "country",
         "infrastructure",
         "case",
+        "registrar",
     )
 
     def __init__(self) -> None:
@@ -95,6 +96,7 @@ class EntityResolver:
         module3_report: Optional[Any] = None,
         module4_report: Optional[Any] = None,
         module5_report: Optional[Any] = None,
+        infrastructure_intelligence_report: Optional[Any] = None,
         case_id: Optional[str] = None,
         timestamp: Optional[str] = None,
     ) -> List[CorrelatedEntity]:
@@ -123,6 +125,10 @@ class EntityResolver:
         # 5. Module 5: Origin & Infrastructure
         if module5_report is not None:
             self._extract_from_module5(module5_report, timestamp)
+
+        # 6. Infrastructure Intelligence Layer
+        if infrastructure_intelligence_report is not None:
+            self._extract_from_infrastructure_intelligence(infrastructure_intelligence_report, timestamp)
 
         return self.all_entities()
 
@@ -268,5 +274,53 @@ class EntityResolver:
                 self.resolve_entity("country", geo["country"], "origin_infrastructure", attributes={"city": geo.get("city")}, timestamp=default_ts)
 
             infra = p_dict.get("infrastructure", {})
-            if isinstance(infra, dict) and infra.get("classification") and infra["classification"] != "unknown":
+            if infra and isinstance(infra, dict) and infra.get("classification") and infra["classification"] != "unknown":
                 self.resolve_entity("infrastructure", infra["classification"], "origin_infrastructure", attributes=infra, timestamp=default_ts)
+
+    def _extract_from_infrastructure_intelligence(self, report: Any, default_ts: Optional[str]) -> None:
+        d = report.to_dict() if hasattr(report, "to_dict") else dict(report)
+
+        # Registrar entity
+        rdap = d.get("rdap", {})
+        if rdap and rdap.get("registrar"):
+            self.resolve_entity(
+                "registrar",
+                rdap["registrar"],
+                "infrastructure_intelligence",
+                attributes={"registrar_id": rdap.get("registrar_id")},
+                timestamp=default_ts,
+            )
+
+        # Allocated network entity
+        if rdap and (rdap.get("network_name") or rdap.get("cidr")):
+            net_val = rdap.get("network_name") or rdap.get("cidr")
+            self.resolve_entity(
+                "infrastructure",
+                str(net_val),
+                "infrastructure_intelligence",
+                attributes={"cidr": rdap.get("cidr"), "rir": rdap.get("rir")},
+                timestamp=default_ts,
+            )
+
+        # MX host entities
+        mx = d.get("mx", {})
+        for r in mx.get("records", []):
+            if isinstance(r, dict) and r.get("host"):
+                self.resolve_entity(
+                    "hostname",
+                    r["host"],
+                    "infrastructure_intelligence",
+                    attributes={"preference": r.get("preference"), "primary_provider": mx.get("primary_provider")},
+                    timestamp=default_ts,
+                )
+
+        # Reverse DNS / PTR hostname entities
+        rdns = d.get("reverse_dns", {})
+        for h in rdns.get("ptr_hostnames", []):
+            self.resolve_entity(
+                "hostname",
+                h,
+                "infrastructure_intelligence",
+                attributes={"fcrdns_valid": rdns.get("fcrdns_valid")},
+                timestamp=default_ts,
+            )

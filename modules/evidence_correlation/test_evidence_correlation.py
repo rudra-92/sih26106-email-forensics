@@ -22,6 +22,7 @@ from modules.evidence_correlation import (
     EmailThreatModelAdapter,
     EXPECTED_MODULE3_FEATURES,
     EvidenceCorrelationAnalyzer,
+    ForensicFusionModelAdapter,
     URLRiskModelAdapter,
     UrlRiskClassifierAdapter,
     correlate_evidence,
@@ -896,6 +897,541 @@ class TestEvidenceCorrelation(unittest.TestCase):
         c_dict = case.to_dict()
         self.assertIsInstance(c_dict, dict)
         self.assertEqual(c_dict["case_id"], "CASE-E999")
+
+    # =========================================================================
+    # 7. Real Forensic Fusion Model Adapter Tests
+    # =========================================================================
+
+    def _sample_real_fusion_payload(self) -> dict:
+        """Deterministic test payload shaped exactly like FusionThreatPredictor.predict_email()."""
+        return {
+            "email_id": "test_phish_001",
+            "prediction": {
+                "label": "phishing",
+                "confidence": 0.9967,
+                "probabilities": {
+                    "fraud_related": 0.0026,
+                    "legitimate": 0.0007,
+                    "phishing": 0.9967,
+                },
+            },
+            "nlp_signals": {
+                "model1d_probs": {
+                    "legitimate": 0.0308,
+                    "spam": 0.0,
+                    "phishing": 0.9581,
+                    "fraud_related": 0.0112,
+                }
+            },
+            "explainability": {
+                "target_class": "phishing",
+                "top_positive_forensic_drivers": [
+                    {"feature": "nlp_prob_phishing", "shap_impact": 3.3192, "feature_value": 0.9581},
+                    {"feature": "sentence_count", "shap_impact": 0.1265, "feature_value": 3},
+                    {"feature": "currency_symbol_count", "shap_impact": 0.0705, "feature_value": 0},
+                ],
+                "top_negative_counter_signals": [
+                    {"feature": "max_query_length", "shap_impact": -0.6543, "feature_value": 38},
+                    {"feature": "credential_term_count", "shap_impact": -0.1614, "feature_value": 3},
+                ],
+            },
+            "forensic_evidence_summary": {
+                "spf_pass": 0,
+                "spf_alignment_issue": 1,
+                "dkim_pass": 0,
+                "dkim_alignment_issue": 0,
+                "dmarc_pass": 0,
+                "dmarc_alignment_issue": 1,
+                "sender_domain_mismatch": 0,
+                "url_count": 1,
+                "ip_based_url_count": 1,
+                "urgency_term_count": 2,
+                "financial_term_count": 0,
+                "attachment_count": 0,
+                "executable_attachment": 0,
+                "yara_match_count": 0,
+            },
+        }
+
+    def test_20_fusion_adapter_real_payload_parsing(self) -> None:
+        """20. Verify ForensicFusionModelAdapter parses real runtime payload into MlPrediction."""
+        payload = self._sample_real_fusion_payload()
+        pred = ForensicFusionModelAdapter.parse(payload, case_id="CASE-P001")
+        self.assertIsNotNone(pred)
+        assert pred is not None
+
+        self.assertEqual(pred.model, "ml_forensic_fusion")
+        self.assertEqual(pred.label, "phishing")
+        self.assertAlmostEqual(pred.confidence, 0.9967, places=4)
+        self.assertEqual(pred.confidence_metric, "heuristic_non_calibrated_consensus")
+        self.assertEqual(pred.trust_state, "inferred")
+        self.assertEqual(pred.input_reference, "test_phish_001")
+        self.assertIn("ml_forensic_fusion", pred.provenance)
+        self.assertIn("predict_fusion.FusionThreatPredictor", pred.provenance)
+
+        # Check positive SHAP formatting in top_features
+        self.assertTrue(any("nlp_prob_phishing" in f for f in pred.top_features))
+        self.assertTrue(any("sentence_count" in f for f in pred.top_features))
+
+    def test_21_fusion_adapter_preserves_model1d_and_model3_probabilities(self) -> None:
+        """21. Verify Model 1D (4 classes) and Model 3 (3 classes) probabilities are preserved separately."""
+        payload = self._sample_real_fusion_payload()
+        pred = ForensicFusionModelAdapter.parse(payload)
+        assert pred is not None
+
+        norm_ev = ForensicFusionModelAdapter.to_normalized_evidence(pred)
+        self.assertGreater(len(norm_ev), 2)
+
+        # 1. Primary fusion prediction evidence
+        fusion_ev = next(e for e in norm_ev if e.rule_id == "RULE-ML-FUSION-PHISHING")
+        m3_probs = fusion_ev.supporting_fields.get("model3_probabilities", {})
+        self.assertEqual(len(m3_probs), 3)
+        self.assertEqual(m3_probs["phishing"], 0.9967)
+        self.assertEqual(m3_probs["fraud_related"], 0.0026)
+        self.assertEqual(m3_probs["legitimate"], 0.0007)
+
+        # 2. Model 1D NLP linguistics evidence
+        m1d_ev = next(e for e in norm_ev if e.rule_id == "RULE-ML-MODEL1D-NLP-SIGNALS")
+        m1d_probs = m1d_ev.supporting_fields.get("model1d_probabilities", {})
+        self.assertEqual(len(m1d_probs), 4)
+        self.assertEqual(m1d_probs["phishing"], 0.9581)
+        self.assertEqual(m1d_probs["fraud_related"], 0.0112)
+        self.assertEqual(m1d_probs["spam"], 0.0)
+        self.assertEqual(m1d_probs["legitimate"], 0.0308)
+
+    def test_22_fusion_adapter_shap_drivers_and_negative_counter_signals(self) -> None:
+        """22. Verify positive SHAP drivers and negative counter-signals are preserved as explanatory evidence."""
+        payload = self._sample_real_fusion_payload()
+        norm_ev = ForensicFusionModelAdapter.to_normalized_evidence(payload)
+
+        # Positive drivers
+        pos_ev = [e for e in norm_ev if e.rule_id == "RULE-ML-SHAP-SUPPORTING-DRIVER"]
+        self.assertEqual(len(pos_ev), 3)
+        self.assertTrue(all(e.trust_state == "inferred" for e in pos_ev))
+        self.assertTrue(any(e.supporting_fields.get("feature") == "nlp_prob_phishing" for e in pos_ev))
+        self.assertTrue(any(e.supporting_fields.get("direction") == "supporting" for e in pos_ev))
+
+        # Negative counter-signals
+        neg_ev = [e for e in norm_ev if e.rule_id == "RULE-ML-SHAP-COUNTER-SIGNAL"]
+        self.assertEqual(len(neg_ev), 2)
+        self.assertTrue(all(e.trust_state == "inferred" for e in neg_ev))
+        self.assertTrue(any(e.supporting_fields.get("feature") == "max_query_length" for e in neg_ev))
+        self.assertTrue(any(e.supporting_fields.get("direction") == "counter-signal" for e in neg_ev))
+
+        # Forensic feature summary
+        summary_ev = next(e for e in norm_ev if e.rule_id == "RULE-ML-FEATURE-SUMMARY")
+        self.assertEqual(summary_ev.trust_state, "inferred")
+        self.assertEqual(summary_ev.supporting_fields.get("ip_based_url_count"), 1)
+
+    def test_23_fusion_contradiction_detection_auth_pass(self) -> None:
+        """23. Verify contradiction is generated when ML predicts phishing but SPF/DKIM passed."""
+        payload = self._sample_real_fusion_payload()
+        case = correlate_evidence(
+            email_id="E_AUTH_PASS_ML_PHISH",
+            module1_report={
+                "envelope_sender": "notice@bank.com",
+                "header_from": "notice@bank.com",
+                "auth_results": {"spf": {"result": "pass", "scope": "mfrom", "domain": "bank.com"}},
+            },
+            ml_fusion_prediction=payload,
+        )
+
+        self.assertGreater(len(case.contradictions), 0)
+        auth_conflicts = [c for c in case.contradictions if c.conflict_type == "ml_vs_auth"]
+        self.assertEqual(len(auth_conflicts), 1)
+        conflict = auth_conflicts[0]
+        self.assertEqual(conflict.rule_id, "RULE-CORR-ML-AUTH-CONFLICT")
+        self.assertIn("ml_forensic_fusion", conflict.explanation)
+        self.assertIn("PASSED", conflict.explanation)
+
+    def test_24a_ml_phishing_no_suspicious_url_indicators_not_a_contradiction(self) -> None:
+        """24a. Verify mere absence of suspicious URL indicators does NOT create a contradiction record."""
+        payload = self._sample_real_fusion_payload()
+        case = correlate_evidence(
+            email_id="E_NEUTRAL_URLS_ML_PHISH",
+            module3_report={
+                "extracted_urls": ["https://example.com/info"],
+                "total_urls": 1,
+                "url_findings": [{"url": "https://example.com/info", "risk_level": "informational"}],
+            },
+            ml_fusion_prediction=payload,
+        )
+
+        url_conflicts = [c for c in case.contradictions if c.conflict_type == "ml_vs_url_analysis"]
+        self.assertEqual(len(url_conflicts), 0, "Mere absence of suspicious URL evidence must NOT be treated as a contradiction")
+
+    def test_24b_ml_phishing_explicitly_benign_url_evidence_creates_contradiction(self) -> None:
+        """24b. Verify contradiction IS created when deterministic URL analysis explicitly verified URL as benign/trusted."""
+        payload = self._sample_real_fusion_payload()
+        case = correlate_evidence(
+            email_id="E_BENIGN_URLS_ML_PHISH",
+            module3_report={
+                "extracted_urls": ["https://trusted-portal.internal.corp/home"],
+                "total_urls": 1,
+                "assessment": {
+                    "category": "trusted_domain",
+                    "risk_level": "trusted",
+                    "confidence": 0.85,
+                    "reason": "Explicitly allowlisted enterprise portal",
+                },
+                "observations": [
+                    {
+                        "observation_id": "OBS-URL-001",
+                        "rule_id": "RULE-URL-TRUSTED",
+                        "severity": "informational",
+                        "description": "URL explicitly verified as benign trusted enterprise domain",
+                        "evidence": {"domain": "trusted-portal.internal.corp", "is_trusted": True},
+                    }
+                ],
+            },
+            ml_fusion_prediction=payload,
+        )
+
+        url_conflicts = [c for c in case.contradictions if c.conflict_type == "ml_vs_url_analysis"]
+        self.assertEqual(len(url_conflicts), 1)
+        conflict = url_conflicts[0]
+        self.assertEqual(conflict.rule_id, "RULE-CORR-ML-URL-CONFLICT")
+        self.assertIn("ml_forensic_fusion", conflict.explanation)
+        self.assertIn("benign/trusted", conflict.explanation)
+
+    def test_24c_ml_phishing_suspicious_url_evidence_creates_corroboration_not_contradiction(self) -> None:
+        """24c. Verify suspicious URL evidence corroborates with ML phishing rather than contradicting."""
+        payload = self._sample_real_fusion_payload()
+        case = correlate_evidence(
+            email_id="E_SUSPICIOUS_URLS_ML_PHISH",
+            module3_report={
+                "extracted_urls": ["http://198.51.100.22/secure/login"],
+                "total_urls": 1,
+                "observations": [
+                    {
+                        "observation_id": "OBS-URL-002",
+                        "rule_id": "RULE-URL-LOGIN-TOKEN",
+                        "severity": "high",
+                        "description": "Suspicious login credential harvesting URL path detected",
+                        "evidence": {"has_login": True, "is_ip": True},
+                    }
+                ],
+            },
+            ml_fusion_prediction=payload,
+        )
+
+        # Must NOT be a contradiction
+        url_conflicts = [c for c in case.contradictions if c.conflict_type == "ml_vs_url_analysis"]
+        self.assertEqual(len(url_conflicts), 0)
+
+        # MUST be a corroborated finding
+        phish_findings = [f for f in case.correlated_findings if f.finding_type == "correlated_credential_phishing"]
+        self.assertEqual(len(phish_findings), 1)
+        finding = phish_findings[0]
+        self.assertIn("url_analysis", finding.source_modules)
+        self.assertIn("external_ml", finding.source_modules)
+
+    def test_25_fusion_end_to_end_correlation_and_json_serialization(self) -> None:
+        """25. Verify complete investigation case with real fusion output serializes cleanly to JSON."""
+        import json
+
+        payload = self._sample_real_fusion_payload()
+        case = correlate_evidence(
+            email_id="E_FULL_FUSION_001",
+            module1_report={
+                "header_from": "Service <alert@paypa1-security.com>",
+                "auth_results": {"spf": {"result": "fail", "scope": "mfrom", "domain": "paypa1-security.com"}},
+            },
+            module2_report={
+                "is_lookalike": True,
+                "target_brand": "PayPal",
+                "candidate_score": 0.88,
+                "query_domain": "paypa1-security.com",
+            },
+            module3_report={
+                "extracted_urls": ["http://198.51.100.99/login"],
+                "total_urls": 1,
+                "ip_based_url_count": 1,
+            },
+            ml_fusion_prediction=payload,
+        )
+
+        # Check ML prediction presence
+        self.assertEqual(len(case.ml_predictions), 1)
+        self.assertEqual(case.ml_predictions[0].model, "ml_forensic_fusion")
+        self.assertEqual(case.ml_predictions[0].label, "phishing")
+
+        # Check evidence generation across all components
+        fusion_ev = [e for e in case.evidence if e.source_module == "ml_forensic_fusion"]
+        self.assertGreaterEqual(len(fusion_ev), 5)  # primary, m1d, pos drivers, neg counter-signals, feat summary
+        self.assertTrue(all(e.trust_state == "inferred" for e in fusion_ev))
+
+        # Check that hypotheses exist
+        self.assertGreater(len(case.hypotheses), 0)
+
+        # JSON serialization
+        case_dict = case.to_dict()
+        self.assertIsInstance(case_dict, dict)
+        serialized_json = json.dumps(case_dict, indent=2)
+        self.assertIsInstance(serialized_json, str)
+        deserialized = json.loads(serialized_json)
+        self.assertEqual(deserialized["case_id"], "CASE-E_FULL_FUSION_001")
+        self.assertEqual(deserialized["ml_predictions"][0]["model"], "ml_forensic_fusion")
+
+    # =========================================================================
+    # 13. Focused Positive / Negative / Substring Regression Tests
+    # =========================================================================
+
+    def test_regression_1_lookalike_positive_case(self) -> None:
+        """1. LOOKALIKE POSITIVE: candidate=True + positive contextual validation generates impersonation."""
+        m1_dict = {
+            "entities": [
+                {"type": "email_address", "value": "security@paypal.com"},
+                {"type": "domain", "value": "paypa1.com"},
+            ],
+            "observations": [
+                {
+                    "rule_id": "RULE-ID-REPLY-TO-MISMATCH",
+                    "severity": "high",
+                    "description": "Reply-To divergence: user@paypa1.com vs user@paypal.com",
+                    "evidence": {},
+                }
+            ],
+        }
+        m2_dict = {
+            "observed_domain": "paypa1.com",
+            "reference_domain": "paypal.com",
+            "candidate_score": 0.91,
+            "candidate": True,
+            "is_candidate": True,
+            "is_lookalike": True,
+            "category": "homoglyph_attack",
+            "evidence_strength": "strong",
+            "positive_evidence": [
+                {
+                    "rule_id": "RULE-LOOKALIKE-MATCH",
+                    "severity": "high",
+                    "description": "Domain paypa1.com resembles paypal.com via homoglyph substitution",
+                    "evidence": {},
+                }
+            ],
+            "negative_evidence": [],
+            "hypotheses": [
+                {
+                    "hypothesis": "possible_domain_impersonation",
+                    "confidence": 0.88,
+                    "evidence_strength": "strong",
+                    "reason": "Homoglyph variation targets reference domain.",
+                }
+            ],
+        }
+
+        case = correlate_evidence(
+            email_id="CASE-LOOKALIKE-POS-001",
+            module1_report=m1_dict,
+            module2_report=m2_dict,
+        )
+
+        finding_types = [f.finding_type for f in case.correlated_findings]
+        self.assertIn("correlated_identity_deception", finding_types)
+
+        hypo_types = [h.hypothesis_type for h in case.hypotheses]
+        self.assertIn("possible_domain_impersonation", hypo_types)
+
+        resembles_rels = [r for r in case.relationships if r.relationship_type == "resembles"]
+        self.assertGreaterEqual(len(resembles_rels), 1)
+        self.assertEqual(resembles_rels[0].from_entity, "domain:paypa1.com")
+        self.assertEqual(resembles_rels[0].to_entity, "domain:paypal.com")
+
+    def test_regression_2_lookalike_negative_case(self) -> None:
+        """2. LOOKALIKE NEGATIVE: candidate=False / unlikely_domain_impersonation generates NO impersonation."""
+        m1_dict = {
+            "entities": [
+                {"type": "email_address", "value": "security@paypal.com"},
+                {"type": "domain", "value": "paypa1-security.com"},
+            ],
+            "observations": [
+                {
+                    "rule_id": "RULE-ID-REPLY-TO-MISMATCH",
+                    "severity": "high",
+                    "description": "Reply-To divergence: user@paypa1-security.com vs user@paypal.com",
+                    "evidence": {},
+                }
+            ],
+        }
+        m2_dict = {
+            "observed_domain": "paypa1-security.com",
+            "reference_domain": "paypal.com",
+            "candidate_score": 0.4083,
+            "candidate": False,
+            "is_candidate": False,
+            "category": "unlikely_domain_impersonation",
+            "evidence_strength": "none",
+            "positive_evidence": [],
+            "negative_evidence": [],
+            "hypotheses": [
+                {
+                    "hypothesis": "unlikely_domain_impersonation",
+                    "confidence": 0.10,
+                    "evidence_strength": "none",
+                    "reason": "Observed domain shows low lexical resemblance to reference domains.",
+                }
+            ],
+        }
+
+        case = correlate_evidence(
+            email_id="CASE-LOOKALIKE-NEG-001",
+            module1_report=m1_dict,
+            module2_report=m2_dict,
+        )
+
+        finding_types = [f.finding_type for f in case.correlated_findings]
+        self.assertNotIn("correlated_identity_deception", finding_types)
+
+        hypo_types = [h.hypothesis_type for h in case.hypotheses]
+        self.assertNotIn("possible_domain_impersonation", hypo_types)
+
+        resembles_rels = [r for r in case.relationships if r.relationship_type == "resembles"]
+        self.assertEqual(len(resembles_rels), 0)
+
+        m2_ev = [e for e in case.evidence if e.source_module == "lookalike_domain"]
+        rejected_ev = [e for e in m2_ev if e.rule_id == "RULE-LOOKALIKE-REJECTED-CANDIDATE"]
+        self.assertGreaterEqual(len(rejected_ev), 1)
+        self.assertEqual(rejected_ev[0].severity, "informational")
+        self.assertFalse(rejected_ev[0].supporting_fields.get("candidate"))
+
+    def test_regression_3_anonymization_positive_case(self) -> None:
+        """3. ANONYMIZATION POSITIVE: Explicit Tor/VPN/proxy evidence generates possible_anonymized_infrastructure."""
+        m5_dict = {
+            "origin_assessment": {
+                "earliest_reliable_peer": "185.220.101.5",
+                "assessment_reason": "Earliest reliable peer matches active Tor exit router directory.",
+                "source_visibility": "anonymized_origin",
+                "confidence": 0.88,
+            },
+            "entities": [
+                {
+                    "type": "ip",
+                    "value": "185.220.101.5",
+                    "attributes": {"classification": "tor_exit_node", "is_hosting": True},
+                }
+            ],
+            "observations": [
+                {
+                    "rule_id": "RULE-ORIGIN-TOR-EXIT",
+                    "severity": "high",
+                    "description": "Origin infrastructure IP matches confirmed Tor exit node list",
+                    "evidence": {"is_tor": True},
+                }
+            ],
+            "hypotheses": [
+                {
+                    "hypothesis_type": "possible_anonymized_infrastructure",
+                    "confidence": 0.88,
+                    "supporting_evidence": ["Peer IP matches Tor exit node directory."],
+                    "contradicting_evidence": [],
+                    "trust_state": "enriched",
+                    "provenance": {"rule_id": "HYPO-ANONYMIZED-INFRA"},
+                }
+            ],
+        }
+
+        case = correlate_evidence(
+            email_id="CASE-ANONYM-POS-001",
+            module5_report=m5_dict,
+        )
+
+        hypo_types = [h.hypothesis_type for h in case.hypotheses]
+        self.assertIn("possible_anonymized_infrastructure", hypo_types)
+        anon_hypo = next(h for h in case.hypotheses if h.hypothesis_type == "possible_anonymized_infrastructure")
+        self.assertGreaterEqual(anon_hypo.heuristic_confidence, 0.80)
+
+    def test_regression_4_anonymization_negative_case(self) -> None:
+        """4. ANONYMIZATION NEGATIVE: direct_origin + documentation/test IP produces NO anonymized infrastructure."""
+        m5_dict = {
+            "origin_assessment": {
+                "earliest_reliable_peer": "198.51.100.99",
+                "assessment_reason": (
+                    "Hop 1 represents the earliest reliable external peer (198.51.100.99) observable in the "
+                    "reconstructed transmission path."
+                ),
+                "source_visibility": "direct_origin",
+                "confidence": 0.85,
+            },
+            "entities": [
+                {
+                    "type": "ip",
+                    "value": "198.51.100.99",
+                    "attributes": {"classification": "direct_origin", "is_hosting": False},
+                }
+            ],
+            "observations": [],
+            "hypotheses": [
+                {
+                    "hypothesis_type": "possible_direct_origin",
+                    "confidence": 0.85,
+                    "supporting_evidence": ["Peer IP appears as direct sender."],
+                    "contradicting_evidence": [],
+                    "trust_state": "inferred",
+                    "provenance": {"rule_id": "HYPO-DIRECT-ORIGIN"},
+                }
+            ],
+        }
+
+        case = correlate_evidence(
+            email_id="CASE-ANONYM-NEG-001",
+            module5_report=m5_dict,
+        )
+
+        hypo_types = [h.hypothesis_type for h in case.hypotheses]
+        self.assertNotIn("possible_anonymized_infrastructure", hypo_types)
+
+        m5_ev = [e for e in case.evidence if e.source_module == "origin_infrastructure"]
+        peer_ev = next(e for e in m5_ev if e.rule_id == "RULE-ORIGIN-EARLIEST-PEER")
+        self.assertTrue(peer_ev.supporting_fields.get("is_documentation_ip"))
+        self.assertTrue(peer_ev.supporting_fields.get("is_synthetic_test"))
+
+    def test_regression_5_substring_actor_does_not_trigger_tor(self) -> None:
+        """5. SUBSTRING REGRESSION: Ordinary words like 'actor', 'directory', 'factor' must NOT trigger Tor detection."""
+        m5_dict = {
+            "origin_assessment": {
+                "earliest_reliable_peer": "93.184.216.34",
+                "assessment_reason": (
+                    "Reconstructed transmission identified unverified threat actor origin and multi-factor "
+                    "directory transport gateway without anonymization."
+                ),
+                "source_visibility": "direct_origin",
+                "confidence": 0.80,
+            },
+            "entities": [
+                {
+                    "type": "ip",
+                    "value": "93.184.216.34",
+                    "attributes": {"classification": "direct_origin", "is_hosting": False},
+                }
+            ],
+            "observations": [
+                {
+                    "rule_id": "RULE-ORIGIN-OBSERVATION",
+                    "severity": "informational",
+                    "description": "Routing hop attributed to unverified external actor infrastructure",
+                    "evidence": {},
+                }
+            ],
+            "hypotheses": [
+                {
+                    "hypothesis_type": "possible_direct_origin",
+                    "confidence": 0.80,
+                    "supporting_evidence": ["Direct routing path from external actor server."],
+                    "contradicting_evidence": [],
+                    "trust_state": "inferred",
+                    "provenance": {"rule_id": "HYPO-DIRECT-ORIGIN"},
+                }
+            ],
+        }
+
+        case = correlate_evidence(
+            email_id="CASE-SUBSTRING-ACTOR-001",
+            module5_report=m5_dict,
+        )
+
+        hypo_types = [h.hypothesis_type for h in case.hypotheses]
+        self.assertNotIn("possible_anonymized_infrastructure", hypo_types)
 
 
 if __name__ == "__main__":

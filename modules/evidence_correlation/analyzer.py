@@ -45,9 +45,11 @@ class EvidenceCorrelationAnalyzer:
         module3_report: Optional[Union[Dict[str, Any], Any]] = None,
         module4_report: Optional[Union[Dict[str, Any], Any]] = None,
         module5_report: Optional[Union[Dict[str, Any], Any]] = None,
+        infrastructure_intelligence_report: Optional[Union[Dict[str, Any], Any]] = None,
         ml_threat_prediction: Optional[Union[Dict[str, Any], Any]] = None,
         ml_bec_prediction: Optional[Union[Dict[str, Any], Any]] = None,
         ml_url_predictions: Optional[List[Union[Dict[str, Any], Any]]] = None,
+        ml_fusion_prediction: Optional[Union[Dict[str, Any], Any]] = None,
         ml_predictions: Optional[List[MlPrediction]] = None,
         timestamp: Optional[str] = None,
     ) -> InvestigationCase:
@@ -63,6 +65,7 @@ class EvidenceCorrelationAnalyzer:
             threat_prediction=ml_threat_prediction,
             bec_prediction=ml_bec_prediction,
             url_predictions=ml_url_predictions,
+            fusion_prediction=ml_fusion_prediction,
             case_id=c_id,
         )
         for p in additional_ml:
@@ -78,6 +81,7 @@ class EvidenceCorrelationAnalyzer:
             module4_report=module4_report,
             module5_report=module5_report,
             ml_predictions=parsed_ml,
+            infrastructure_intelligence_report=infrastructure_intelligence_report,
         )
 
         # Extract SHA-256 if not explicitly passed
@@ -95,6 +99,7 @@ class EvidenceCorrelationAnalyzer:
             module3_report=module3_report,
             module4_report=module4_report,
             module5_report=module5_report,
+            infrastructure_intelligence_report=infrastructure_intelligence_report,
             case_id=c_id,
             timestamp=timestamp,
         )
@@ -111,6 +116,7 @@ class EvidenceCorrelationAnalyzer:
             module3_report=module3_report,
             module4_report=module4_report,
             module5_report=module5_report,
+            infrastructure_intelligence_report=infrastructure_intelligence_report,
             timestamp=timestamp,
         )
 
@@ -129,6 +135,7 @@ class EvidenceCorrelationAnalyzer:
             module1_report=module1_report,
             module5_report=module5_report,
             module2_report=module2_report,
+            module3_report=module3_report,
         )
 
         # 7. Cross-Case & Temporal Correlation
@@ -210,9 +217,11 @@ def correlate_evidence(
     module3_report: Optional[Any] = None,
     module4_report: Optional[Any] = None,
     module5_report: Optional[Any] = None,
+    infrastructure_intelligence_report: Optional[Any] = None,
     ml_threat_prediction: Optional[Any] = None,
     ml_bec_prediction: Optional[Any] = None,
     ml_url_predictions: Optional[List[Any]] = None,
+    ml_fusion_prediction: Optional[Any] = None,
     ml_predictions: Optional[List[MlPrediction]] = None,
     case_store: Optional[CrossCaseCorrelator] = None,
     timestamp: Optional[str] = None,
@@ -227,9 +236,11 @@ def correlate_evidence(
         module3_report=module3_report,
         module4_report=module4_report,
         module5_report=module5_report,
+        infrastructure_intelligence_report=infrastructure_intelligence_report,
         ml_threat_prediction=ml_threat_prediction,
         ml_bec_prediction=ml_bec_prediction,
         ml_url_predictions=ml_url_predictions,
+        ml_fusion_prediction=ml_fusion_prediction,
         ml_predictions=ml_predictions,
         timestamp=timestamp,
     )

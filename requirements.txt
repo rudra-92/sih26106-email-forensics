@@ -1,3 +1,13 @@
-# SIH26106 Email Forensics Platform - Minimal Runtime Dependencies
+# SIH26106 Email Forensics Platform - Runtime Dependencies
 # Offline-first local MMDB reader for Module 5 (Origin & Infrastructure Reconstruction)
 maxminddb==3.2.0
+
+# Database Persistence (PostgreSQL + SQLAlchemy 2.x + Alembic)
+SQLAlchemy>=2.0.0
+psycopg[binary]>=3.2.0
+alembic>=1.13.0
+
+# Authentication & Security (Argon2 + PyJWT + Dotenv)
+PyJWT>=2.8.0
+argon2-cffi>=23.1.0
+python-dotenv>=1.0.0

@@ -79,6 +79,7 @@ class RelationshipEngine:
         module3_report: Optional[Any] = None,
         module4_report: Optional[Any] = None,
         module5_report: Optional[Any] = None,
+        infrastructure_intelligence_report: Optional[Any] = None,
         timestamp: Optional[str] = None,
     ) -> List[CorrelatedRelationship]:
         """Correlate all domain, URL, IP, and attachment relationships across modules."""
@@ -88,6 +89,7 @@ class RelationshipEngine:
         m3_eids = [e.evidence_id for e in evidence_list if e.source_module == "url_analysis"]
         m4_eids = [e.evidence_id for e in evidence_list if e.source_module == "attachment_analysis"]
         m5_eids = [e.evidence_id for e in evidence_list if e.source_module == "origin_infrastructure"]
+        infra_eids = [e.evidence_id for e in evidence_list if e.source_module == "infrastructure_intelligence"]
 
         email_eid = f"email:{email_id}"
         case_eid = f"case:{case_id}"
@@ -121,6 +123,10 @@ class RelationshipEngine:
         # 5. Module 5: email -> observed_from -> ip -> belongs_to -> asn / located_in -> country
         if module5_report is not None:
             self._correlate_module5(module5_report, email_eid, m5_eids, timestamp)
+
+        # 6. Infrastructure Intelligence
+        if infrastructure_intelligence_report is not None:
+            self._correlate_infrastructure_intelligence(infrastructure_intelligence_report, infra_eids, timestamp)
 
         return self.all_relationships()
 
@@ -175,7 +181,11 @@ class RelationshipEngine:
         obs_dom = str(d.get("observed_domain") or d.get("query_domain") or "").strip().lower()
         ref_dom = str(d.get("reference_domain") or d.get("target_brand") or "").strip().lower()
 
-        if obs_dom and ref_dom:
+        is_cand = bool(d.get("candidate", False) or d.get("is_candidate", False) or d.get("is_lookalike", False))
+        score = float(d.get("candidate_score", 0.0))
+        is_rej = d.get("candidate") is False or d.get("is_candidate") is False or d.get("category") == "unlikely_domain_impersonation"
+
+        if obs_dom and ref_dom and not is_rej and (is_cand or score >= 0.70 or d.get("is_lookalike")):
             self.add_relationship(
                 from_entity=f"domain:{obs_dom}",
                 relationship_type="resembles",
@@ -264,3 +274,64 @@ class RelationshipEngine:
             if isinstance(infra, dict) and infra.get("classification") and infra["classification"] != "unknown":
                 inf_val = str(infra["classification"]).strip()
                 self.add_relationship(ip_eid, "infrastructure_type", f"infrastructure:{inf_val}", "origin_infrastructure", evidence_ids=eids, timestamp=timestamp)
+
+    def _correlate_infrastructure_intelligence(
+        self,
+        report: Any,
+        eids: List[str],
+        timestamp: Optional[str],
+    ) -> None:
+        d = report.to_dict() if hasattr(report, "to_dict") else dict(report)
+        target_ip = str(d.get("target_ip", "")).strip()
+        target_domain = str(d.get("target_domain", "")).strip()
+
+        rdap = d.get("rdap", {})
+        # domain -> registered_with -> registrar
+        if target_domain and rdap and rdap.get("registrar"):
+            self.add_relationship(
+                f"domain:{target_domain.lower()}",
+                "registered_with",
+                f"registrar:{rdap['registrar'].strip()}",
+                "infrastructure_intelligence",
+                evidence_ids=eids,
+                timestamp=timestamp,
+            )
+
+        # domain -> mx_served_by -> mx_host
+        mx = d.get("mx", {})
+        if target_domain and mx:
+            for r in mx.get("records", []):
+                if isinstance(r, dict) and r.get("host"):
+                    self.add_relationship(
+                        f"domain:{target_domain.lower()}",
+                        "mx_served_by",
+                        f"hostname:{r['host'].strip().lower()}",
+                        "infrastructure_intelligence",
+                        evidence_ids=eids,
+                        timestamp=timestamp,
+                    )
+
+        # ip -> allocated_in -> allocated_network
+        if target_ip and rdap and (rdap.get("network_name") or rdap.get("cidr")):
+            net_val = rdap.get("network_name") or rdap.get("cidr")
+            self.add_relationship(
+                f"ip:{target_ip}",
+                "allocated_in",
+                f"infrastructure:{str(net_val).strip()}",
+                "infrastructure_intelligence",
+                evidence_ids=eids,
+                timestamp=timestamp,
+            )
+
+        # ip -> ptr_resolves_to -> hostname
+        rdns = d.get("reverse_dns", {})
+        if target_ip and rdns:
+            for h in rdns.get("ptr_hostnames", []):
+                self.add_relationship(
+                    f"ip:{target_ip}",
+                    "ptr_resolves_to",
+                    f"hostname:{str(h).strip().lower()}",
+                    "infrastructure_intelligence",
+                    evidence_ids=eids,
+                    timestamp=timestamp,
+                )

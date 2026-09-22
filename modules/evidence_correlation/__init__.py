@@ -17,6 +17,7 @@ from .ml_adapters import (
     EmailThreatClassifierAdapter,
     EmailThreatModelAdapter,
     EXPECTED_MODULE3_FEATURES,
+    ForensicFusionModelAdapter,
     UnifiedMlAdapter,
     URLRiskModelAdapter,
     UrlRiskClassifierAdapter,
@@ -51,6 +52,7 @@ __all__ = [
     "CaseHypothesisEngine",
     "AttributionSupportEngine",
     # ML Adapters & Contracts
+    "ForensicFusionModelAdapter",
     "EmailThreatModelAdapter",
     "BECIntentModelAdapter",
     "URLRiskModelAdapter",

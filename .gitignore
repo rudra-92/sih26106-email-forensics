@@ -49,4 +49,28 @@ ml/data/processed/*
 .kilo/
 .vscode/
 .idea/
+
+# Environment, Secrets & Credentials
+.env
+.env.*
+!.env.example
 *.env
+*.pem
+*.key
+pw.txt
+*pw*.txt
+*.passwd
+credentials.json
+database_credentials*
+
+# PostgreSQL data & logs
+data/pgdata/
+data/*.log
+pg_server.log
+*.log
+
+# Obsolete Local SQLite Database
+data/forensics_cases.db
+*.db
+*.sqlite
+*.sqlite3

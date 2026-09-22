@@ -57,8 +57,8 @@ class CorroborationEngine:
         if mal_finding:
             findings.append(mal_finding)
 
-        # 4. Correlated Infrastructure Abuse (M5 + M1/M3)
-        infra_finding = self._check_infrastructure_abuse(by_module)
+        # 4. Correlated Infrastructure Abuse (M5 + M1/M3 + Threat Feed)
+        infra_finding = self._check_infrastructure_abuse(by_module, ml_predictions or [])
         if infra_finding:
             findings.append(infra_finding)
 
@@ -86,8 +86,14 @@ class CorroborationEngine:
             for ev in m1_ev
         )
         has_m2_lookalike = any(
-            ev.evidence_type in ("lookalike_signal", "candidate_score")
-            or "resembles" in ev.description.lower()
+            (
+                ev.evidence_type in ("lookalike_signal", "candidate_score")
+                and ev.severity in ("medium", "high")
+                and ev.supporting_fields.get("candidate", True) is not False
+                and ev.supporting_fields.get("is_candidate", True) is not False
+                and ev.supporting_fields.get("is_lookalike", True) is not False
+                and not ev.supporting_fields.get("rejected", False)
+            )
             for ev in m2_ev
         )
         has_m3_url_domain = any(
@@ -104,7 +110,11 @@ class CorroborationEngine:
                 if "divergence" in e.description.lower() or "reply-to" in e.description.lower():
                     supporting_eids.append(e.evidence_id)
             for e in m2_ev:
-                if e.evidence_type in ("lookalike_signal", "candidate_score"):
+                if (
+                    e.evidence_type in ("lookalike_signal", "candidate_score")
+                    and e.severity in ("medium", "high")
+                    and not e.supporting_fields.get("rejected", False)
+                ):
                     supporting_eids.append(e.evidence_id)
 
             strength = "high"
@@ -147,7 +157,16 @@ class CorroborationEngine:
             for ev in m3_ev
         )
         has_sender_anomaly = any(ev.severity in ("medium", "high") for ev in m1_ev)
-        has_domain_deception = any(e.evidence_type == "lookalike_signal" for e in m2_ev)
+        has_domain_deception = any(
+            (
+                e.evidence_type in ("lookalike_signal", "candidate_score")
+                and e.severity in ("medium", "high")
+                and e.supporting_fields.get("candidate", True) is not False
+                and e.supporting_fields.get("is_candidate", True) is not False
+                and not e.supporting_fields.get("rejected", False)
+            )
+            for e in m2_ev
+        )
         has_ml_phishing = any(
             p.label in ("phishing", "credential_harvesting") and p.confidence >= 0.70
             for p in ml_predictions
@@ -172,7 +191,11 @@ class CorroborationEngine:
             if has_domain_deception:
                 modules.append("lookalike_domain")
                 for e in m2_ev:
-                    if e.evidence_type == "lookalike_signal":
+                    if (
+                        e.evidence_type in ("lookalike_signal", "candidate_score")
+                        and e.severity in ("medium", "high")
+                        and not e.supporting_fields.get("rejected", False)
+                    ):
                         supporting_eids.append(e.evidence_id)
 
             if has_ml_phishing:
@@ -254,11 +277,53 @@ class CorroborationEngine:
     def _check_infrastructure_abuse(
         self,
         by_module: Dict[str, List[NormalizedEvidence]],
+        ml_predictions: Optional[List[MlPrediction]] = None,
     ) -> Optional[CorroboratedFinding]:
-        """M5 cloud/hosting/anonymized origin + M1 unverified earliest peer."""
+        """Correlate infrastructure findings (threat feeds, hosting, anonymization) with independent indicators."""
+        infra_ev = by_module.get("infrastructure_intelligence", [])
         m5_ev = by_module.get("origin_infrastructure", [])
         m1_ev = by_module.get("sender_identity", [])
+        m3_ev = by_module.get("url_analysis", [])
 
+        # 1. Threat Feed match + (Auth failure OR ML Phishing OR Suspicious URL)
+        tf_matches = [e for e in infra_ev if e.rule_id == "RULE-ORIGIN-DROP-MATCH"]
+        auth_fails = [
+            e for e in m1_ev
+            if e.evidence_type in ("authentication", "authentication_result")
+            and any(f in e.description.lower() for f in ("fail", "softfail", "neutral", "none", "temperror", "permerror"))
+            and not any(p in e.description.lower() for p in ("result: pass", "result:pass"))
+        ]
+        ml_preds = ml_predictions or []
+        has_ml_phish = any(p.label == "phishing" and p.confidence >= 0.70 for p in ml_preds)
+        has_susp_url = any(e.severity in ("medium", "high") for e in m3_ev)
+
+        if tf_matches and (auth_fails or has_ml_phish or has_susp_url):
+            supp_eids = [e.evidence_id for e in tf_matches]
+            sources = ["infrastructure_intelligence"]
+            if auth_fails:
+                supp_eids.extend(e.evidence_id for e in auth_fails[:2])
+                sources.append("sender_identity")
+            if has_susp_url:
+                supp_eids.extend(e.evidence_id for e in m3_ev if e.severity in ("medium", "high"))
+                sources.append("url_analysis")
+            if has_ml_phish:
+                sources.append("external_ml")
+
+            return CorroboratedFinding(
+                finding_id=self._next_id(),
+                finding_type="correlated_infrastructure_abuse",
+                title="Correlated Threat-Feed Infrastructure & Attack Vectors",
+                description=(
+                    "Origin infrastructure is listed in a local public threat dataset (Spamhaus DROP) "
+                    "and independently corroborated by authentication anomalies, deceptive URLs, or ML phishing indicators."
+                ),
+                supporting_evidence_ids=sorted(list(set(supp_eids))),
+                source_modules=sorted(list(set(sources))),
+                heuristic_support_strength="high",
+                confidence_metric="heuristic_non_calibrated_consensus",
+            )
+
+        # 2. Fallback: M5 cloud/hosting/anonymized origin + M1 unverified earliest peer
         has_m5_hosting = any(
             "hosting" in ev.description.lower()
             or "cloud" in ev.description.lower()

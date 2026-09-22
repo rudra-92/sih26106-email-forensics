@@ -1,0 +1,17 @@
+; Spamhaus Don't Route Or Peer List (DROP)
+; Source: https://www.spamhaus.org/drop/drop.txt
+; Maintainer: The Spamhaus Project
+; License: Permissive public threat dataset for local offline filtering
+; Update: 2026-09-01T00:00:00Z
+; Format: CIDR ; SBL-Ref
+
+103.242.107.0/24 ; SBL392182
+103.251.167.0/24 ; SBL412981
+103.41.205.0/24 ; SBL362910
+104.223.107.0/24 ; SBL498210
+176.119.1.0/24 ; SBL482910
+185.130.104.0/24 ; SBL499102
+194.26.29.0/24 ; SBL512983
+194.36.191.0/24 ; SBL509121
+194.67.210.0/24 ; SBL528190
+195.123.245.0/24 ; SBL519201

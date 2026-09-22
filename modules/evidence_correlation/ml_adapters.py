@@ -496,6 +496,307 @@ class URLRiskModelAdapter(BaseModelAdapter):
 UrlRiskClassifierAdapter = URLRiskModelAdapter
 
 
+class ForensicFusionModelAdapter(BaseModelAdapter):
+    """Adapter for the real trained Forensic Fusion Model (Model 3 XGBoost + Model 1D NLP + Model 2 features).
+
+    Consumes the exact output payload produced by FusionThreatPredictor.predict_email():
+    - prediction: label, confidence, probabilities (fraud_related, legitimate, phishing)
+    - nlp_signals: model1d_probs (legitimate, spam, phishing, fraud_related)
+    - explainability: target_class, top_positive_forensic_drivers, top_negative_counter_signals
+    - forensic_evidence_summary: dictionary of extracted forensic features
+
+    CRITICAL FORENSIC SEMANTICS & ATTRIBUTION GUARDRAILS:
+    - trust_state is ALWAYS 'inferred'; ML predictions are NEVER treated as observed facts.
+    - confidence_metric is strictly 'heuristic_non_calibrated_consensus'.
+    - NEVER asserts attacker identity, physical location, or guaranteed malice.
+    - Positive SHAP drivers and negative counter-signals are preserved as explanatory evidence.
+    - Model 1D NLP distribution is preserved separately from Model 3 fusion probabilities.
+    """
+
+    MODEL_NAME = "ml_forensic_fusion"
+    DEFAULT_CONFIDENCE_METRIC = "heuristic_non_calibrated_consensus"
+
+    @classmethod
+    def parse(
+        cls,
+        payload: Union[Dict[str, Any], Any],
+        case_id: Optional[str] = None,
+    ) -> Optional[MlPrediction]:
+        """Ingest and normalize a real FusionThreatPredictor output payload into an MlPrediction."""
+        if payload is None:
+            return None
+
+        if hasattr(payload, "to_dict"):
+            raw_data = payload.to_dict()
+        elif isinstance(payload, dict):
+            raw_data = payload
+        else:
+            return cls.from_framework_output(payload, model_name=cls.MODEL_NAME, input_reference=case_id)
+
+        # 1. Prediction details
+        pred_dict = raw_data.get("prediction", {})
+        if not isinstance(pred_dict, dict):
+            pred_dict = raw_data
+
+        raw_label = str(pred_dict.get("label", "unknown")).lower()
+        conf_raw = pred_dict.get("confidence", 0.0)
+        conf = cls.parse_confidence(conf_raw)
+
+        ref = str(raw_data.get("email_id", raw_data.get("input_reference", case_id or "")))
+
+        # 2. Extract SHAP positive drivers and format into top_features
+        explainability = raw_data.get("explainability", {})
+        pos_drivers = explainability.get("top_positive_forensic_drivers", []) if isinstance(explainability, dict) else []
+        top_features: List[str] = []
+        features_used: List[str] = []
+
+        if isinstance(pos_drivers, list):
+            for d in pos_drivers:
+                if isinstance(d, dict):
+                    fname = str(d.get("feature", ""))
+                    impact = d.get("shap_impact", 0.0)
+                    try:
+                        impact_val = float(impact)
+                    except (ValueError, TypeError):
+                        impact_val = 0.0
+                    if fname:
+                        features_used.append(fname)
+                        top_features.append(f"{fname} (+{impact_val:.4f})" if impact_val >= 0 else f"{fname} ({impact_val:.4f})")
+
+        # Negative counter-signals
+        neg_drivers = explainability.get("top_negative_counter_signals", []) if isinstance(explainability, dict) else []
+        if isinstance(neg_drivers, list):
+            for d in neg_drivers:
+                if isinstance(d, dict):
+                    fname = str(d.get("feature", ""))
+                    if fname and fname not in features_used:
+                        features_used.append(fname)
+
+        # 3. Sanitize raw data to guarantee zero forbidden attribution speculation
+        cleaned_raw = cls.sanitize_raw(raw_data)
+
+        return MlPrediction(
+            model=cls.MODEL_NAME,
+            model_version=str(raw_data.get("model_version", "1.0.0-fusion")),
+            label=raw_label,
+            confidence=conf,
+            confidence_metric=cls.DEFAULT_CONFIDENCE_METRIC,
+            input_reference=ref if ref else None,
+            trust_state="inferred",
+            features_used=features_used,
+            top_features=top_features,
+            provenance=[cls.MODEL_NAME, "predict_fusion.FusionThreatPredictor"],
+            raw_prediction=cleaned_raw,
+        )
+
+    @classmethod
+    def to_normalized_evidence(
+        cls,
+        payload_or_prediction: Union[Dict[str, Any], MlPrediction, Any],
+        case_id: Optional[str] = None,
+        start_index: int = 1,
+    ) -> List[NormalizedEvidence]:
+        """Convert real fusion output into structured, granular NormalizedEvidence objects."""
+        ev_list: List[NormalizedEvidence] = []
+        idx = start_index
+
+        pred: Optional[MlPrediction] = None
+        raw: Dict[str, Any] = {}
+
+        if isinstance(payload_or_prediction, MlPrediction):
+            pred = payload_or_prediction
+            raw = pred.raw_prediction or {}
+        elif isinstance(payload_or_prediction, dict):
+            pred = cls.parse(payload_or_prediction, case_id=case_id)
+            if pred is None:
+                return []
+            raw = pred.raw_prediction
+        else:
+            return []
+
+        if pred is None:
+            return []
+
+        ref = pred.input_reference or case_id or ""
+        entities = [ref] if ref else []
+        prov = list(pred.provenance or [cls.MODEL_NAME])
+
+        # --- 1. Primary Fusion Threat Prediction Evidence ---
+        pred_dict = raw.get("prediction", {}) if isinstance(raw, dict) else {}
+        probs = pred_dict.get("probabilities", {}) if isinstance(pred_dict, dict) else {}
+
+        sev = "informational"
+        if pred.label in ("phishing", "fraud_related", "fraud", "malware"):
+            sev = "high"
+        elif pred.label in ("suspicious", "spam"):
+            sev = "medium"
+        elif pred.label in ("legitimate", "benign", "safe"):
+            sev = "low"
+
+        desc = (
+            f"Forensic fusion model '{pred.model}' predicted '{pred.label}' "
+            f"(confidence: {pred.confidence:.4f}, consensus metric: {pred.confidence_metric})"
+        )
+        ev_list.append(
+            NormalizedEvidence(
+                evidence_id=f"EV-FUSION-{idx:04d}",
+                source_module=cls.MODEL_NAME,
+                evidence_type="ml_prediction",
+                rule_id=f"RULE-ML-FUSION-{pred.label.upper()}",
+                severity=sev,
+                trust_state="inferred",
+                description=desc,
+                entity_ids=entities,
+                timestamp=None,
+                provenance=prov,
+                supporting_fields={
+                    "model": pred.model,
+                    "model_version": pred.model_version,
+                    "label": pred.label,
+                    "confidence": pred.confidence,
+                    "confidence_metric": pred.confidence_metric,
+                    "model3_probabilities": dict(probs) if isinstance(probs, dict) else {},
+                    "top_features": list(pred.top_features),
+                },
+            )
+        )
+        idx += 1
+
+        # --- 2. Model 1D NLP Linguistics Signal Evidence ---
+        nlp_signals = raw.get("nlp_signals", {}) if isinstance(raw, dict) else {}
+        m1d_probs = nlp_signals.get("model1d_probs", {}) if isinstance(nlp_signals, dict) else {}
+        if isinstance(m1d_probs, dict) and m1d_probs:
+            phish_p = float(m1d_probs.get("phishing", 0.0) or 0.0)
+            fraud_p = float(m1d_probs.get("fraud_related", 0.0) or 0.0)
+            spam_p = float(m1d_probs.get("spam", 0.0) or 0.0)
+            legit_p = float(m1d_probs.get("legitimate", 0.0) or 0.0)
+
+            nlp_sev = "high" if (phish_p >= 0.70 or fraud_p >= 0.70) else ("medium" if (phish_p >= 0.30 or fraud_p >= 0.30 or spam_p >= 0.50) else "low")
+            dominant_sig = max(m1d_probs.items(), key=lambda x: float(x[1] or 0.0))[0] if m1d_probs else "unknown"
+            ev_list.append(
+                NormalizedEvidence(
+                    evidence_id=f"EV-M1D-{idx:04d}",
+                    source_module=cls.MODEL_NAME,
+                    evidence_type="ml_prediction",
+                    rule_id="RULE-ML-MODEL1D-NLP-SIGNALS",
+                    severity=nlp_sev,
+                    trust_state="inferred",
+                    description=(
+                        f"Model 1D NLP linguistic analysis: phishing={phish_p:.4f}, "
+                        f"fraud_related={fraud_p:.4f}, spam={spam_p:.4f}, legitimate={legit_p:.4f}"
+                    ),
+                    entity_ids=entities,
+                    timestamp=None,
+                    provenance=[cls.MODEL_NAME, "model1d_word_char_filtered_lr"],
+                    supporting_fields={
+                        "model1d_probabilities": {
+                            "phishing": phish_p,
+                            "fraud_related": fraud_p,
+                            "spam": spam_p,
+                            "legitimate": legit_p,
+                        },
+                        "dominant_nlp_signal": dominant_sig,
+                    },
+                )
+            )
+            idx += 1
+
+        # --- 3. SHAP Positive Supporting Drivers ---
+        explainability = raw.get("explainability", {}) if isinstance(raw, dict) else {}
+        pos_drivers = explainability.get("top_positive_forensic_drivers", []) if isinstance(explainability, dict) else []
+        if isinstance(pos_drivers, list):
+            for d in pos_drivers[:8]:
+                if isinstance(d, dict):
+                    feat = str(d.get("feature", ""))
+                    impact = float(d.get("shap_impact", 0.0))
+                    val = d.get("feature_value")
+                    target = str(explainability.get("target_class", pred.label))
+
+                    ev_list.append(
+                        NormalizedEvidence(
+                            evidence_id=f"EV-SHAP-POS-{idx:04d}",
+                            source_module=cls.MODEL_NAME,
+                            evidence_type="ml_prediction",
+                            rule_id="RULE-ML-SHAP-SUPPORTING-DRIVER",
+                            severity="medium" if impact >= 0.20 else "low",
+                            trust_state="inferred",
+                            description=(
+                                f"SHAP local attribution: feature '{feat}' (+{impact:.4f}) "
+                                f"supports threat classification '{target}' (observed value: {val})"
+                            ),
+                            entity_ids=entities,
+                            timestamp=None,
+                            provenance=[cls.MODEL_NAME, "shap.TreeExplainer"],
+                            supporting_fields={
+                                "feature": feat,
+                                "shap_impact": impact,
+                                "feature_value": val,
+                                "direction": "supporting",
+                                "target_class": target,
+                            },
+                        )
+                    )
+                    idx += 1
+
+        # --- 4. SHAP Negative Counter-Signals (Preserved!) ---
+        neg_drivers = explainability.get("top_negative_counter_signals", []) if isinstance(explainability, dict) else []
+        if isinstance(neg_drivers, list):
+            for d in neg_drivers[:5]:
+                if isinstance(d, dict):
+                    feat = str(d.get("feature", ""))
+                    impact = float(d.get("shap_impact", 0.0))
+                    val = d.get("feature_value")
+                    target = str(explainability.get("target_class", pred.label))
+
+                    ev_list.append(
+                        NormalizedEvidence(
+                            evidence_id=f"EV-SHAP-NEG-{idx:04d}",
+                            source_module=cls.MODEL_NAME,
+                            evidence_type="ml_prediction",
+                            rule_id="RULE-ML-SHAP-COUNTER-SIGNAL",
+                            severity="informational",
+                            trust_state="inferred",
+                            description=(
+                                f"SHAP local attribution counter-signal: feature '{feat}' ({impact:.4f}) "
+                                f"contests classification '{target}' (observed value: {val})"
+                            ),
+                            entity_ids=entities,
+                            timestamp=None,
+                            provenance=[cls.MODEL_NAME, "shap.TreeExplainer"],
+                            supporting_fields={
+                                "feature": feat,
+                                "shap_impact": impact,
+                                "feature_value": val,
+                                "direction": "counter-signal",
+                                "target_class": target,
+                            },
+                        )
+                    )
+                    idx += 1
+
+        # --- 5. Forensic Evidence Summary (Observed ML inputs) ---
+        feat_sum = raw.get("forensic_evidence_summary", {}) if isinstance(raw, dict) else {}
+        if isinstance(feat_sum, dict) and feat_sum:
+            ev_list.append(
+                NormalizedEvidence(
+                    evidence_id=f"EV-FEATSUM-{idx:04d}",
+                    source_module=cls.MODEL_NAME,
+                    evidence_type="ml_prediction",
+                    rule_id="RULE-ML-FEATURE-SUMMARY",
+                    severity="informational",
+                    trust_state="inferred",
+                    description="Observed forensic feature summary consumed during ML fusion inference",
+                    entity_ids=entities,
+                    timestamp=None,
+                    provenance=[cls.MODEL_NAME, "ForensicFeaturePipeline"],
+                    supporting_fields=dict(feat_sum),
+                )
+            )
+            idx += 1
+
+        return ev_list
+
+
 class UnifiedMlAdapter:
     """Consolidated adapter managing ingestion across all external ML models."""
 
@@ -505,24 +806,31 @@ class UnifiedMlAdapter:
         threat_prediction: Optional[Union[Dict[str, Any], Any]] = None,
         bec_prediction: Optional[Union[Dict[str, Any], Any]] = None,
         url_predictions: Optional[List[Union[Dict[str, Any], Any]]] = None,
+        fusion_prediction: Optional[Union[Dict[str, Any], Any]] = None,
         case_id: Optional[str] = None,
     ) -> List[MlPrediction]:
         """Parse predictions from all available models into a validated list of MlPrediction."""
         results: List[MlPrediction] = []
 
-        # 1. Email Threat Classifier
+        # 1. Real Forensic Fusion Predictor (Priority)
+        if fusion_prediction is not None:
+            p_fusion = ForensicFusionModelAdapter.parse(fusion_prediction, case_id=case_id)
+            if p_fusion:
+                results.append(p_fusion)
+
+        # 2. Email Threat Classifier
         if threat_prediction is not None:
             p_threat = EmailThreatModelAdapter.parse(threat_prediction, case_id=case_id)
             if p_threat:
                 results.append(p_threat)
 
-        # 2. BEC Intent Classifier
+        # 3. BEC Intent Classifier
         if bec_prediction is not None:
             p_bec = BECIntentModelAdapter.parse(bec_prediction, case_id=case_id)
             if p_bec:
                 results.append(p_bec)
 
-        # 3. URL Risk Classifier
+        # 4. URL Risk Classifier
         if url_predictions:
             for u_pred in url_predictions:
                 p_url = URLRiskModelAdapter.parse(u_pred)
@@ -539,7 +847,18 @@ class UnifiedMlAdapter:
     ) -> List[NormalizedEvidence]:
         """Convert ML predictions to NormalizedEvidence with trust_state = 'inferred'."""
         ev_list: List[NormalizedEvidence] = []
-        for idx, pred in enumerate(predictions, start=start_index):
+        cur_idx = start_index
+        for pred in predictions:
+            if pred.model == ForensicFusionModelAdapter.MODEL_NAME:
+                fusion_ev = ForensicFusionModelAdapter.to_normalized_evidence(
+                    pred,
+                    case_id=pred.input_reference,
+                    start_index=cur_idx,
+                )
+                ev_list.extend(fusion_ev)
+                cur_idx += len(fusion_ev)
+                continue
+
             severity = "informational"
             if pred.label in (
                 "phishing",
@@ -569,7 +888,7 @@ class UnifiedMlAdapter:
 
             ev_list.append(
                 NormalizedEvidence(
-                    evidence_id=f"EV-ML-{idx:03d}",
+                    evidence_id=f"EV-ML-{cur_idx:03d}",
                     source_module=pred.model,
                     evidence_type="ml_prediction",
                     rule_id=f"RULE-ML-{pred.model.upper()}",
@@ -590,4 +909,5 @@ class UnifiedMlAdapter:
                     },
                 )
             )
+            cur_idx += 1
         return ev_list

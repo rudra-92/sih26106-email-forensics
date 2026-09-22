@@ -12,6 +12,7 @@ STRICT FORENSIC PRINCIPLES:
 
 from __future__ import annotations
 
+import re
 from typing import List, Optional
 
 from .models import (
@@ -22,6 +23,7 @@ from .models import (
     MlPrediction,
     NormalizedEvidence,
 )
+from .normalizer import is_documentation_or_test_ip
 
 
 class CaseHypothesisEngine:
@@ -102,26 +104,54 @@ class CaseHypothesisEngine:
         findings: List[CorroboratedFinding],
         contradictions: List[str],
     ) -> Optional[CaseHypothesis]:
-        m2_ev = [e for e in evidence if e.source_module == "lookalike_domain" and e.severity in ("medium", "high")]
+        # Only consider positive M2 evidence
+        m2_pos = [
+            e for e in evidence
+            if e.source_module == "lookalike_domain"
+            and e.severity in ("medium", "high")
+            and e.evidence_type in ("lookalike_signal", "candidate_score")
+            and e.supporting_fields.get("candidate", True) is not False
+            and e.supporting_fields.get("is_candidate", True) is not False
+            and e.supporting_fields.get("is_lookalike", True) is not False
+            and not e.supporting_fields.get("rejected", False)
+        ]
         has_id_finding = any(f.finding_type == "correlated_identity_deception" for f in findings)
 
-        if m2_ev or has_id_finding:
-            supp = [e.description for e in m2_ev[:3]]
-            if has_id_finding:
-                supp.append("Corroborated identity deception across sender headers and lookalike domain.")
-
-            conf = 0.88 if has_id_finding else 0.75
-            return CaseHypothesis(
-                hypothesis_type="possible_domain_impersonation",
-                heuristic_confidence=conf,
-                confidence_metric="heuristic_non_calibrated_consensus",
-                supporting_evidence=supp,
-                contradicting_evidence=list(contradictions[:2]),
-                source_modules=["lookalike_domain", "sender_identity"],
-                trust_state="inferred",
-                provenance={"engine": "CaseHypothesisEngine"},
+        # Explicit check: Never convert unlikely_domain_impersonation into possible_domain_impersonation
+        # without positive Module 2 evidence
+        m2_explicitly_unlikely = any(
+            e.source_module == "lookalike_domain"
+            and (
+                e.rule_id in ("RULE-LOOKALIKE-REJECTED-CANDIDATE", "RULE-LOOKALIKE-UNLIKELY")
+                or e.supporting_fields.get("hypothesis") == "unlikely_domain_impersonation"
+                or e.supporting_fields.get("candidate") is False
+                or e.supporting_fields.get("is_candidate") is False
+                or e.supporting_fields.get("rejected") is True
             )
-        return None
+            for e in evidence
+        )
+
+        if m2_explicitly_unlikely and not m2_pos:
+            return None
+
+        if not m2_pos and not has_id_finding:
+            return None
+
+        supp = [e.description for e in m2_pos[:3]]
+        if has_id_finding:
+            supp.append("Corroborated identity deception across sender headers and lookalike domain.")
+
+        conf = 0.88 if has_id_finding else 0.75
+        return CaseHypothesis(
+            hypothesis_type="possible_domain_impersonation",
+            heuristic_confidence=conf,
+            confidence_metric="heuristic_non_calibrated_consensus",
+            supporting_evidence=supp,
+            contradicting_evidence=list(contradictions[:2]),
+            source_modules=["lookalike_domain", "sender_identity"],
+            trust_state="inferred",
+            provenance={"engine": "CaseHypothesisEngine"},
+        )
 
     def _eval_phishing_and_credential_harvesting(
         self,
@@ -228,7 +258,54 @@ class CaseHypothesisEngine:
         evidence: List[NormalizedEvidence],
         contradictions: List[str],
     ) -> Optional[CaseHypothesis]:
-        m5_anon = [e for e in evidence if e.source_module == "origin_infrastructure" and ("tor" in e.description.lower() or "vpn" in e.description.lower() or "anonymized" in e.description.lower())]
+        # 1. Check if direct_origin was explicitly assessed by Module 5
+        has_direct_origin = any(
+            e.source_module == "origin_infrastructure"
+            and (
+                e.supporting_fields.get("hypothesis_type") == "possible_direct_origin"
+                or e.supporting_fields.get("classification") == "direct_origin"
+                or e.rule_id == "HYPO-DIRECT-ORIGIN"
+                or "possible_direct_origin" in e.description
+            )
+            for e in evidence
+        )
+
+        # 2. Check for explicit anonymized infrastructure indicators
+        m5_anon = []
+        for e in evidence:
+            if e.source_module != "origin_infrastructure":
+                continue
+
+            # Documentation/test IPs must not be interpreted as real anonymized infrastructure
+            peer_ip = str(e.supporting_fields.get("earliest_reliable_peer") or e.supporting_fields.get("ip") or "")
+            if is_documentation_or_test_ip(peer_ip) or e.supporting_fields.get("is_documentation_ip") is True:
+                continue
+
+            # Explicit rule IDs or hypothesis types
+            if e.rule_id in ("RULE-ORIGIN-TOR-EXIT", "RULE-ORIGIN-VPN-EXIT", "HYPO-ANONYMIZED-INFRA"):
+                m5_anon.append(e)
+            elif (
+                e.evidence_type == "origin_hypothesis"
+                and e.supporting_fields.get("hypothesis_type") == "possible_anonymized_infrastructure"
+            ):
+                m5_anon.append(e)
+            elif (
+                e.supporting_fields.get("is_tor") is True
+                or e.supporting_fields.get("is_vpn") is True
+                or e.supporting_fields.get("is_proxy") is True
+            ):
+                m5_anon.append(e)
+            elif re.search(
+                r"\b(tor exit|tor node|vpn endpoint|vpn relay|anonymizer|anonymizing proxy)\b",
+                e.description,
+                re.IGNORECASE,
+            ):
+                m5_anon.append(e)
+
+        # If direct origin was assessed and there is NO explicit anonymizer proof, do not infer anonymized infrastructure
+        if has_direct_origin and not m5_anon:
+            return None
+
         if m5_anon:
             return CaseHypothesis(
                 hypothesis_type="possible_anonymized_infrastructure",
