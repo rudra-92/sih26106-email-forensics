@@ -26,16 +26,34 @@
   height: 28px;
 }
 
+.btn-sm.btn-icon-only {
+  padding: 4px;
+  width: 28px;
+  min-width: 28px;
+}
+
 .btn-md {
   font-size: var(--text-sm);
   padding: 6px 14px;
   height: 34px;
 }
 
+.btn-md.btn-icon-only {
+  padding: 6px;
+  width: 34px;
+  min-width: 34px;
+}
+
 .btn-lg {
   font-size: var(--text-base);
   padding: 8px 18px;
   height: 40px;
+}
+
+.btn-lg.btn-icon-only {
+  padding: 8px;
+  width: 40px;
+  min-width: 40px;
 }
 
 /* Variants */

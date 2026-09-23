@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, RefreshCw, FolderLock, ExternalLink } from 'lucide-react';
+import { Plus, RefreshCw, FolderLock, ExternalLink, Trash2, AlertTriangle } from 'lucide-react';
 import {
   SectionHeader,
   Button,
@@ -13,7 +13,7 @@ import {
   Input,
   type Column,
 } from '../components';
-import { fetchCases, createCase, formatCaseError } from '../api/cases';
+import { fetchCases, createCase, deleteCase, formatCaseError } from '../api/cases';
 import type { Case } from '../types';
 
 export const CasesPage: React.FC = () => {
@@ -27,6 +27,11 @@ export const CasesPage: React.FC = () => {
   const [newTitle, setNewTitle] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string>('');
+
+  // Delete Case State
+  const [caseToDelete, setCaseToDelete] = useState<Case | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [deleteError, setDeleteError] = useState<string>('');
 
   const loadCases = async () => {
     setIsLoading(true);
@@ -64,6 +69,21 @@ export const CasesPage: React.FC = () => {
       setFormError(formatCaseError(err));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!caseToDelete) return;
+    setIsDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteCase(caseToDelete.case_id);
+      setCaseToDelete(null);
+      await loadCases();
+    } catch (err: unknown) {
+      setDeleteError(formatCaseError(err));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -146,19 +166,33 @@ export const CasesPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
-      width: '100px',
+      width: '160px',
       render: (c) => (
-        <Button
-          variant="outline"
-          size="sm"
-          icon={<ExternalLink size={12} />}
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/cases/${c.case_id}`);
-          }}
-        >
-          Open
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<ExternalLink size={12} />}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/cases/${c.case_id}`);
+            }}
+          >
+            Open
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            icon={<Trash2 size={13} />}
+            title="Delete investigation"
+            aria-label={`Delete case ${c.title}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setCaseToDelete(c);
+              setDeleteError('');
+            }}
+          />
+        </div>
       ),
     },
   ];
@@ -265,6 +299,50 @@ export const CasesPage: React.FC = () => {
           />
         </form>
       </Modal>
+
+      {/* Modal for confirming case deletion */}
+      <Modal
+        isOpen={Boolean(caseToDelete)}
+        onClose={() => setCaseToDelete(null)}
+        title="Delete Forensic Investigation"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCaseToDelete(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              icon={<Trash2 size={13} />}
+              onClick={handleConfirmDelete}
+              isLoading={isDeleting}
+            >
+              Confirm Delete
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--threat-malicious)' }}>
+            <AlertTriangle size={20} />
+            <strong style={{ fontSize: '14px' }}>Are you sure you want to permanently delete this investigation?</strong>
+          </div>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Case <strong>{caseToDelete?.title}</strong> (<span className="mono-text">{caseToDelete?.case_id}</span>) and all associated evidence files, extracted entities, entity relationships, and analysis hypotheses will be permanently purged.
+          </p>
+          {deleteError && (
+            <div style={{ color: 'var(--threat-malicious)', fontSize: '12px', background: 'var(--threat-malicious-bg)', padding: '8px', borderRadius: '4px', border: '1px solid var(--threat-malicious-border)' }}>
+              {deleteError}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };
+

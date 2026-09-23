@@ -119,12 +119,12 @@ export const OverviewSection: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="threat-banner threat-banner-neutral">
+        <div className="threat-banner threat-banner-unexecuted">
           <div className="threat-banner-info">
-            <HelpCircle size={20} style={{ color: 'var(--text-muted)' }} />
+            <HelpCircle size={20} className="threat-banner-unexecuted-icon" />
             <div>
-              <div style={{ fontWeight: 600 }}>Forensic analysis has not been executed.</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+              <div className="threat-banner-unexecuted-title">Forensic analysis has not been executed.</div>
+              <div className="threat-banner-unexecuted-desc">
                 {hasArtifact
                   ? 'Artifact is preserved. Click "Run Forensic Analysis" to initiate Modules 1–6.'
                   : 'Upload a raw .eml artifact below to begin the investigation.'}
@@ -137,8 +137,8 @@ export const OverviewSection: React.FC = () => {
       {/* Real Forensic Entity & Evidence Counters */}
       <div className="stat-counters-grid">
         <div className="stat-counter-card">
-          <div className="stat-counter-icon">
-            <FileText size={16} />
+          <div className="stat-counter-icon stat-counter-icon-evidence">
+            <FileText size={18} />
           </div>
           <div className="stat-counter-data">
             <span className="stat-counter-number">{caseData.evidence_count}</span>
@@ -147,8 +147,8 @@ export const OverviewSection: React.FC = () => {
         </div>
 
         <div className="stat-counter-card">
-          <div className="stat-counter-icon">
-            <Layers size={16} />
+          <div className="stat-counter-icon stat-counter-icon-entities">
+            <Layers size={18} />
           </div>
           <div className="stat-counter-data">
             <span className="stat-counter-number">{caseData.entity_count}</span>
@@ -157,8 +157,8 @@ export const OverviewSection: React.FC = () => {
         </div>
 
         <div className="stat-counter-card">
-          <div className="stat-counter-icon">
-            <Share2 size={16} />
+          <div className="stat-counter-icon stat-counter-icon-graph">
+            <Share2 size={18} />
           </div>
           <div className="stat-counter-data">
             <span className="stat-counter-number">{caseData.relationship_count}</span>
@@ -167,8 +167,8 @@ export const OverviewSection: React.FC = () => {
         </div>
 
         <div className="stat-counter-card">
-          <div className="stat-counter-icon">
-            <GitBranch size={16} />
+          <div className="stat-counter-icon stat-counter-icon-hypotheses">
+            <GitBranch size={18} />
           </div>
           <div className="stat-counter-data">
             <span className="stat-counter-number">{caseData.hypothesis_count}</span>

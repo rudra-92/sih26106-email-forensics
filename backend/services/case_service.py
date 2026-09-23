@@ -120,3 +120,19 @@ class CaseService:
             "message": "Email file preserved and attached to case.",
             "case": updated_case,
         }
+
+    def delete_case(self, case_id: str) -> bool:
+        """Delete a case and remove any stored files on disk."""
+        if not SAFE_CASE_ID_PATTERN.match(case_id):
+            return False
+
+        case_storage_dir = self.storage_dir / case_id
+        if case_storage_dir.exists() and case_storage_dir.is_dir():
+            try:
+                import shutil
+                shutil.rmtree(case_storage_dir)
+            except Exception:
+                pass
+
+        return self.repository.delete_case(case_id)
+

@@ -134,3 +134,28 @@ async def upload_email(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         )
+
+
+@router.delete(
+    "/{case_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Delete an investigation case",
+)
+def delete_case(
+    case_id: str,
+    case: Dict[str, Any] = Depends(get_owned_case),
+    service: CaseService = Depends(get_case_service),
+) -> Dict[str, Any]:
+    """Permanently delete a forensic case container, entities, and evidence."""
+    success = service.delete_case(case_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Case '{case_id}' not found.",
+        )
+    return {
+        "status": "ok",
+        "message": f"Case '{case_id}' deleted successfully.",
+        "case_id": case_id,
+    }
+

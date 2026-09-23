@@ -4,120 +4,282 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background-color: var(--bg-canvas);
-  padding: var(--space-4);
+  background-color: #FFFFFF;
+  padding: 32px 16px;
+  font-family: 'Aptos', 'Segoe UI', system-ui, sans-serif;
+  position: relative;
 }
 
+.auth-topbar {
+  width: 100%;
+  max-width: 440px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.auth-topbar .sandesh-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Aptos', 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #17243A;
+  background-color: #FFFFFF;
+  border: 1px solid #D7E0EA;
+  border-radius: 6px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(23, 36, 58, 0.06);
+}
+
+.auth-topbar .sandesh-back-btn:hover {
+  color: #1683E8;
+  border-color: #1683E8;
+  background-color: #EBF4FE;
+  transform: translateX(-2px);
+}
+
+/* Authentication Card with Dark Glow Elevation */
 .auth-card {
   width: 100%;
-  max-width: 420px;
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-panel);
-  padding: var(--space-6);
+  max-width: 440px;
+  background-color: #FFFFFF;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  box-shadow: 
+    0 0 0 1px rgba(15, 23, 42, 0.05),
+    0 12px 32px -4px rgba(15, 27, 45, 0.20),
+    0 24px 60px -12px rgba(15, 27, 45, 0.28),
+    0 0 40px rgba(15, 27, 45, 0.12);
+  padding: 36px 32px;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.auth-card:hover {
+  box-shadow: 
+    0 0 0 1px rgba(15, 23, 42, 0.08),
+    0 16px 40px -4px rgba(15, 27, 45, 0.25),
+    0 30px 75px -12px rgba(15, 27, 45, 0.35),
+    0 0 50px rgba(15, 27, 45, 0.18);
 }
 
 .auth-brand {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
+  justify-content: center;
+  margin-bottom: 20px;
   text-decoration: none;
 }
 
-.auth-brand-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-xs);
-  background-color: var(--action-primary);
-  color: var(--text-inverse);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.auth-brand-title {
-  font-size: var(--text-base);
-  font-weight: var(--font-bold);
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-}
-
-.auth-brand-badge {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--action-primary);
-  background-color: var(--action-primary-subtle);
-  border: 1px solid var(--action-primary-border);
-  padding: 1px 6px;
-  border-radius: var(--radius-xs);
-}
-
 .auth-header {
-  margin-bottom: var(--space-5);
+  margin-bottom: 24px;
+  text-align: center;
 }
 
 .auth-title {
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
-  margin-bottom: var(--space-1);
+  font-family: 'Aptos', 'Segoe UI', system-ui, sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: #17243A;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.01em;
 }
 
 .auth-subtitle {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
+  font-family: 'Aptos', 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  color: #64748B;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .auth-error-banner {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  background-color: var(--threat-malicious-bg);
-  border: 1px solid var(--threat-malicious-border);
-  border-radius: var(--radius-sm);
-  color: var(--threat-malicious-text);
-  font-size: var(--text-xs);
-  margin-bottom: var(--space-4);
+  gap: 8px;
+  padding: 10px 12px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #b91c1c;
+  font-size: 12.5px;
+  margin-bottom: 18px;
+  font-family: 'Aptos', 'Segoe UI', system-ui, sans-serif;
 }
 
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 16px;
+}
+
+.auth-form .input-group {
+  gap: 4px;
+}
+
+.auth-form .input-label {
+  font-family: 'Aptos', 'Segoe UI', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #17243A;
+}
+
+.auth-form .input-control {
+  background-color: #FFFFFF;
+  border: 1px solid #D7E0EA;
+  border-radius: 6px;
+  color: #17243A;
+  font-family: 'Aptos', 'Segoe UI', system-ui, sans-serif;
+  font-size: 13.5px;
+  padding: 8px 12px;
+  height: 38px;
+  transition: all 0.15s ease;
+}
+
+.auth-form .input-control:hover:not(:disabled) {
+  border-color: #64748B;
+}
+
+.auth-form .input-control:focus {
+  border-color: #1683E8;
+  box-shadow: 0 0 0 2px rgba(22, 131, 232, 0.2);
+  outline: none;
+}
+
+.auth-form .input-control::placeholder {
+  color: rgba(100, 116, 139, 0.6);
 }
 
 .auth-submit-btn {
   width: 100%;
-  margin-top: var(--space-2);
+  margin-top: 8px;
+  height: 40px;
+  background-color: #17243A !important;
+  color: #FFFFFF !important;
+  border: 1px solid #17243A !important;
+  border-radius: 6px !important;
+  font-family: 'Aptos', 'Segoe UI', system-ui, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(23, 36, 58, 0.15);
+  transition: all 0.15s ease !important;
+}
+
+.auth-submit-btn:hover:not(:disabled) {
+  background-color: #0F1B2D !important;
+  border-color: #0F1B2D !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(23, 36, 58, 0.25);
+}
+
+/* ==========================================================================
+   Sandbox Quick Access Box (Subtle Opaque State -> Smooth Slow Hover Reveal)
+   ========================================================================== */
+.auth-sandbox-card {
+  margin-top: 18px;
+  margin-bottom: 8px;
+  padding: 14px 16px;
+  background-color: #ecf7ef;
+  border: 1px solid #c2e2cc;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0.30;
+  filter: blur(1.5px) grayscale(40%);
+  transition: 
+    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.65s ease,
+    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  position: relative;
+}
+
+.auth-sandbox-card:hover {
+  opacity: 1;
+  filter: blur(0) grayscale(0%);
+  box-shadow: 0 6px 20px rgba(22, 101, 52, 0.18);
+  transform: translateY(-1px);
+}
+
+.auth-sandbox-header {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: #166534;
+  font-weight: 700;
+}
+
+.auth-sandbox-creds {
+  font-size: 12px;
+  color: #24583b;
+  line-height: 1.6;
+}
+
+.auth-sandbox-creds code {
+  color: #14532d;
+  background-color: #dcfce7;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+}
+
+.auth-sandbox-btn {
+  margin-top: 4px;
+  padding: 8px 12px;
+  background-color: #15803d;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(21, 128, 61, 0.25);
+}
+
+.auth-sandbox-btn:hover {
+  background-color: #166534;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.35);
+  transform: translateY(-1px);
 }
 
 .auth-footer {
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-subtle);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #E8EEF5;
+  font-family: 'Aptos', 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  color: #64748B;
   text-align: center;
 }
 
 .auth-footer a {
-  color: var(--action-primary);
-  font-weight: var(--font-medium);
+  color: #1683E8;
+  font-weight: 600;
   text-decoration: none;
-  margin-left: var(--space-1);
+  margin-left: 6px;
+  transition: color 0.15s ease;
 }
 
 .auth-footer a:hover {
   text-decoration: underline;
+  color: #1270C7;
 }
 
 .auth-disclaimer {
-  margin-top: var(--space-6);
-  font-size: var(--text-xs);
-  color: var(--text-dim);
+  margin-top: 20px;
+  font-size: 11.5px;
+  color: #8E9EB2;
   text-align: center;
-  font-family: var(--font-mono);
+  font-family: 'Aptos', 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.02em;
 }

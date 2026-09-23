@@ -74,3 +74,8 @@ data/forensics_cases.db
 *.db
 *.sqlite
 *.sqlite3
+
+# Local storage and test uploads
+backend/storage/
+storage/
+

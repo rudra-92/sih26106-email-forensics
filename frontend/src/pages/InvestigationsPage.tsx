@@ -11,6 +11,7 @@ export const InvestigationsPage: React.FC = () => {
       <SectionHeader
         title="Forensic Investigations"
         description="Deep forensic analysis pipeline, entity correlation, origin infrastructure attribution, and hypothesis evaluation."
+        showBack={true}
       />
 
       <Panel

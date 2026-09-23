@@ -16,23 +16,38 @@ import {
   SettingsPage,
   LoginPage,
   RegisterPage,
+  LandingPage,
+  HowItWorksPage,
+  InvestigationPage,
+  EvidencePage,
+  AboutPage,
 } from '../pages';
+
+const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <div className="sandesh-page-transition">{children}</div>;
+};
 
 export const AppRoutes: React.FC = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          {/* Public Landing Page & Dedicated Navigation Sections */}
+          <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
+          <Route path="/how-it-works" element={<PageTransition><HowItWorksPage /></PageTransition>} />
+          <Route path="/investigation" element={<PageTransition><InvestigationPage /></PageTransition>} />
+          <Route path="/evidence" element={<PageTransition><EvidencePage /></PageTransition>} />
+          <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
+
           {/* Public-only authentication routes (redirect authenticated users to /cases) */}
           <Route element={<PublicOnlyRoute />}>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
+            <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
           </Route>
 
           {/* Protected workstation routes (redirect unauthenticated users to /login) */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
-              <Route path="/" element={<Navigate to="/cases" replace />} />
               <Route path="/cases" element={<CasesPage />} />
               
               {/* Nested Case Workspace with persistent header and section tabs */}
@@ -52,7 +67,7 @@ export const AppRoutes: React.FC = () => {
           </Route>
 
           {/* Fallback route */}
-          <Route path="*" element={<Navigate to="/cases" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

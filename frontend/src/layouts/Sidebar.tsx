@@ -53,14 +53,6 @@ export const Sidebar: React.FC = () => {
           ))}
         </ul>
       </div>
-
-      <div className="sidebar-footer">
-        <div className="sidebar-info-card">
-          <div className="sidebar-info-title">SOC Pipeline Status</div>
-          <div>Modules 1–6: Active</div>
-          <div>PostgreSQL: Connected</div>
-        </div>
-      </div>
     </aside>
   );
 };

@@ -1,0 +1,181 @@
+/* ==========================================================================
+   SANDESHSETU MOTION BUTTON DESIGN SYSTEM
+   Apple iPhone Minimalist Clean Glass + Slow Ambient Glow
+   ========================================================================== */
+
+.motion-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Aptos', system-ui, sans-serif;
+  font-size: 14.5px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  padding: 13px 28px;
+  border-radius: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  border: 1px solid transparent;
+  outline: none;
+  background-clip: padding-box;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  -webkit-font-smoothing: antialiased;
+}
+
+.motion-button:focus-visible {
+  outline: 2px solid #38BDF8;
+  outline-offset: 3px;
+}
+
+/* Primary Variant - Clean Minimalist Glass + Slow Cyan/Blue Aura Glow */
+.motion-button--primary {
+  background: rgba(22, 131, 232, 0.16);
+  color: #FFFFFF;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.3), 0 0 40px rgba(22, 131, 232, 0.18);
+}
+
+.motion-button--primary:hover {
+  background: rgba(22, 131, 232, 0.28);
+  border-color: rgba(125, 211, 252, 0.85);
+  color: #FFFFFF;
+  box-shadow: 0 0 35px rgba(56, 189, 248, 0.65), 0 0 70px rgba(22, 131, 232, 0.4);
+  transform: translateY(-2px);
+}
+
+.motion-button--primary:active {
+  transform: translateY(0);
+  background: rgba(22, 131, 232, 0.22);
+  transition-duration: 0.25s;
+}
+
+/* Secondary Variant - Clean Translucent Glass Minimalist Box + Slow Ambient Glow */
+.motion-button--secondary {
+  background: rgba(255, 255, 255, 0.05);
+  color: #F8FAFC;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.08), 0 0 30px rgba(56, 189, 248, 0.12);
+}
+
+.motion-button--secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.55);
+  color: #FFFFFF;
+  box-shadow: 0 0 30px rgba(56, 189, 248, 0.45), 0 0 60px rgba(22, 131, 232, 0.25);
+  transform: translateY(-2px);
+}
+
+.motion-button--secondary:active {
+  transform: translateY(0);
+  background: rgba(255, 255, 255, 0.06);
+  transition-duration: 0.25s;
+}
+
+/* Slow Glowing Ambient Light Sweep */
+.motion-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -140%;
+  width: 70%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    rgba(56, 189, 248, 0.25),
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  transform: skewX(-25deg);
+  pointer-events: none;
+  animation: button-slow-shine 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  z-index: 2;
+}
+
+@keyframes button-slow-shine {
+  0%, 65% {
+    left: -140%;
+  }
+  100% {
+    left: 240%;
+  }
+}
+
+/* Animated Slow Pulse/Spotlight Background Radial Glow */
+.motion-button__circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 160%;
+  height: 260%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.3) 0%, rgba(22, 131, 232, 0) 70%);
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 0.85s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.85s ease-out;
+}
+
+.motion-button:hover .motion-button__circle {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}
+
+.motion-button__circle--animated {
+  animation: motion-pulse-slow 6.5s infinite ease-in-out var(--motion-delay, 0ms);
+}
+
+@keyframes motion-pulse-slow {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(0.7);
+    opacity: 0.15;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 0.4;
+  }
+}
+
+/* Icon & Text */
+.motion-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  order: 2;
+  position: relative;
+  z-index: 3;
+}
+
+.motion-button:hover .motion-button__icon {
+  transform: translateX(4px);
+}
+
+.motion-button__text {
+  position: relative;
+  z-index: 3;
+  order: 1;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .motion-button,
+  .motion-button__icon,
+  .motion-button__circle {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .motion-button:hover {
+    transform: none !important;
+  }
+}

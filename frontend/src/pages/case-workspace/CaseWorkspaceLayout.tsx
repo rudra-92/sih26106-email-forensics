@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, Outlet } from 'react-router-dom';
+import { useParams, Outlet, useLocation } from 'react-router-dom';
 import { Breadcrumb, LoadingState, ErrorState } from '../../components';
 import {
   fetchCaseById,
@@ -16,6 +16,7 @@ import './CaseWorkspace.css';
 
 export const CaseWorkspaceLayout: React.FC = () => {
   const { caseId } = useParams<{ caseId: string }>();
+  const location = useLocation();
 
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [summary, setSummary] = useState<CaseSummary | null>(null);
@@ -201,7 +202,9 @@ export const CaseWorkspaceLayout: React.FC = () => {
         <CaseWorkspaceNav caseId={caseData.case_id} caseData={caseData} />
 
         {/* Dynamic Nested Route Section Content */}
-        <Outlet />
+        <div key={location.pathname} className="sandesh-page-transition">
+          <Outlet />
+        </div>
       </div>
     </CaseWorkspaceContext.Provider>
   );

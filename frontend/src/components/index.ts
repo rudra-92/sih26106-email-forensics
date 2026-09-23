@@ -11,3 +11,5 @@ export * from './LoadingState/LoadingState';
 export * from './ErrorState/ErrorState';
 export * from './Modal/Modal';
 export * from './Breadcrumb/Breadcrumb';
+export * from './KineticGrid/KineticGrid';
+export * from './MotionButton/MotionButton';

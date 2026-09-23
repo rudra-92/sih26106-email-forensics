@@ -194,3 +194,13 @@ export async function fetchCaseOrigin(caseId: string): Promise<OriginData> {
   const { data } = await apiClient.get<OriginData>(`/api/cases/${caseId}/origin`);
   return data;
 }
+
+/**
+ * Permanently delete an investigation case
+ * DELETE /api/cases/{case_id}
+ */
+export async function deleteCase(caseId: string): Promise<{ status: string; message: string }> {
+  const { data } = await apiClient.delete<{ status: string; message: string }>(`/api/cases/${caseId}`);
+  return data;
+}
+

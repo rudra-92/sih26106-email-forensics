@@ -1,0 +1,113 @@
+/* ==========================================================================
+   COMPACT, CLEAN FORENSIC NAVBAR (Aptos Typography, No Glassmorphism)
+   ========================================================================== */
+
+.sandesh-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: #011724;
+  border-bottom: 1px solid rgba(74, 125, 155, 0.2);
+  width: 100%;
+}
+
+.sandesh-nav-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sandesh-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.sandesh-brand-icon {
+  width: 30px;
+  height: 30px;
+  background-color: #4A4E69;
+  color: #F2E9E4;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(201, 173, 167, 0.25);
+}
+
+.sandesh-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.sandesh-brand-title {
+  font-family: 'Aptos', 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600; /* Aptos Semibold */
+  letter-spacing: -0.01em;
+  color: #F2E9E4;
+  line-height: 1.15;
+}
+
+.sandesh-brand-badge {
+  font-family: 'Aptos', 'Segoe UI', system-ui, sans-serif;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: #9A8C98;
+  text-transform: uppercase;
+}
+
+.sandesh-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.sandesh-nav-link {
+  background: none;
+  border: none;
+  color: #FFFFFF;
+  font-family: 'Aptos', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  padding: 8px 0;
+  transition: all 0.2s ease;
+  position: relative;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.35);
+  opacity: 0.92;
+}
+
+.sandesh-nav-link:hover,
+.sandesh-nav-link.active {
+  color: #FFFFFF;
+  opacity: 1;
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.75), 0 0 24px rgba(56, 189, 248, 0.5);
+}
+
+.sandesh-nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background-color: #38BDF8;
+  box-shadow: 0 0 8px #38BDF8;
+  border-radius: 2px;
+}
+
+.sandesh-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+

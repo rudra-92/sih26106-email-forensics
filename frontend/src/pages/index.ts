@@ -6,4 +6,8 @@ export * from './ReportsPage';
 export * from './SettingsPage';
 export * from './LoginPage';
 export * from './RegisterPage';
-
+export * from './LandingPage/LandingPage';
+export * from './HowItWorksPage';
+export * from './InvestigationPage';
+export * from './EvidencePage';
+export * from './AboutPage';

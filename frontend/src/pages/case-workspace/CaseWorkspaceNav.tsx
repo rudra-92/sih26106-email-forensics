@@ -75,8 +75,8 @@ export const CaseWorkspaceNav: React.FC<CaseWorkspaceNavProps> = ({ caseId, case
                 `case-workspace-tab ${isActive ? 'case-workspace-tab-active' : ''}`
               }
             >
-              <Icon size={15} className="case-tab-icon" />
-              <span>{tab.label}</span>
+              <Icon size={17} className="case-tab-icon" />
+              <span className="case-tab-label">{tab.label}</span>
               {tab.badge != null && (
                 <span className="case-tab-badge">{tab.badge}</span>
               )}

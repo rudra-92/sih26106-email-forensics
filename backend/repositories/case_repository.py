@@ -466,3 +466,41 @@ class CaseRepository:
         if data and data.full_case_json:
             return json.loads(data.full_case_json)
         return None
+
+    def delete_case(self, case_id: str) -> bool:
+        """Delete a case and all associated evidence, entities, relationships, hypotheses, and analysis."""
+        db_case = self.session.scalars(
+            select(Case).where(Case.case_id == case_id)
+        ).first()
+        if not db_case:
+            return False
+
+        try:
+            self.session.execute(
+                delete(CaseEvidence).where(CaseEvidence.case_id == case_id)
+            )
+            self.session.execute(
+                delete(CaseEntity).where(CaseEntity.case_id == case_id)
+            )
+            self.session.execute(
+                delete(CaseRelationship).where(
+                    CaseRelationship.case_id == case_id
+                )
+            )
+            self.session.execute(
+                delete(CaseHypothesis).where(
+                    CaseHypothesis.case_id == case_id
+                )
+            )
+            self.session.execute(
+                delete(CaseAnalysisData).where(
+                    CaseAnalysisData.case_id == case_id
+                )
+            )
+            self.session.delete(db_case)
+            self.session.commit()
+            return True
+        except Exception:
+            self.session.rollback()
+            raise
+

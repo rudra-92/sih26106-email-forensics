@@ -18,9 +18,10 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
+  const isIconOnly = Boolean(icon && !children);
   return (
     <button
-      className={`btn btn-${variant} btn-${size} ${className}`}
+      className={`btn btn-${variant} btn-${size} ${isIconOnly ? 'btn-icon-only' : ''} ${className}`}
       disabled={disabled || isLoading}
       {...props}
     >
@@ -29,7 +30,7 @@ export const Button: React.FC<ButtonProps> = ({
       ) : (
         icon && <span className="btn-icon">{icon}</span>
       )}
-      <span>{children}</span>
+      {children && <span>{children}</span>}
     </button>
   );
 };

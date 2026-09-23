@@ -24,6 +24,7 @@ export const SettingsPage: React.FC = () => {
       <SectionHeader
         title="Workstation Settings"
         description="Forensic engine parameters, threat intelligence interfaces, and environment configuration."
+        showBack={true}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 'var(--space-6)' }}>

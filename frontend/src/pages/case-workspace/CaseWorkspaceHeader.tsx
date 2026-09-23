@@ -1,5 +1,5 @@
-import React from 'react';
-import { RefreshCw, Play, FileCheck } from 'lucide-react';
+import { RefreshCw, Play, FileCheck, ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Breadcrumb, Button, StatusBadge, Badge } from '../../components';
 import type { Case } from '../../types';
 
@@ -23,13 +23,35 @@ export const CaseWorkspaceHeader: React.FC<CaseWorkspaceHeaderProps> = ({
 
   return (
     <header className="case-workspace-header">
-      {/* Breadcrumb Navigation */}
-      <Breadcrumb
-        items={[
-          { label: 'Cases', to: '/cases' },
-          { label: caseData.case_id },
-        ]}
-      />
+      {/* Breadcrumb Navigation & Back to Cases */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <Breadcrumb
+          items={[
+            { label: 'Cases', to: '/cases' },
+            { label: caseData.case_id },
+          ]}
+        />
+        <Link
+          to="/cases"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            fontSize: '11.5px',
+            fontWeight: 600,
+            color: 'var(--text-secondary)',
+            textDecoration: 'none',
+            padding: '3px 8px',
+            borderRadius: 'var(--radius-xs)',
+            border: '1px solid var(--border-subtle)',
+            backgroundColor: 'var(--bg-canvas)',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <ArrowLeft size={12} />
+          <span>Back to Cases</span>
+        </Link>
+      </div>
 
       {/* Primary Case Banner & Actions */}
       <div className="case-header-main">

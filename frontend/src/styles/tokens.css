@@ -1,75 +1,82 @@
 /**
  * SIH26106 Design System Tokens
- * Professional Cybersecurity / Forensic Station Theme (Light Mode)
+ * Professional Government-Grade Digital Forensics / SOC Workstation Theme
  */
 
 :root {
-  /* Surface & Background */
-  --bg-canvas: #F8FAFC;
+  /* Sidebar Navy Theme */
+  --bg-sidebar: #0F1B2D;
+  --bg-sidebar-panel: #18263A;
+  --bg-sidebar-hover: rgba(255, 255, 255, 0.07);
+  --text-sidebar-primary: #FFFFFF;
+  --text-sidebar-muted: #8E9EB2;
+
+  /* Surface & Background (Cool Slate Gray Canvas & White Cards) */
+  --bg-canvas: #F1F4F8;
   --bg-surface: #FFFFFF;
-  --bg-surface-subtle: #F1F5F9;
-  --bg-surface-hover: #F8FAFC;
+  --bg-surface-subtle: #F8FAFC;
+  --bg-surface-hover: #F1F5F9;
   --bg-surface-active: #E2E8F0;
 
-  /* Primary Typography (Deep Navy & Slate) */
-  --text-primary: #0F172A;
-  --text-secondary: #334155;
+  /* Primary Typography */
+  --text-primary: #17243A;
+  --text-secondary: #64748B;
   --text-muted: #64748B;
   --text-dim: #94A3B8;
   --text-inverse: #FFFFFF;
 
-  /* Primary Action (Blue) */
-  --action-primary: #2563EB;
-  --action-primary-hover: #1D4ED8;
-  --action-primary-active: #1E40AF;
-  --action-primary-subtle: #EFF6FF;
-  --action-primary-border: #BFDBFE;
+  /* Primary Accent (Electric Blue #1683E8) */
+  --action-primary: #1683E8;
+  --action-primary-hover: #1270C7;
+  --action-primary-active: #0D5BA3;
+  --action-primary-subtle: #EBF4FE;
+  --action-primary-border: #BAD8F8;
 
-  /* Accent (Orange) */
-  --accent-orange: #F97316;
-  --accent-orange-hover: #EA580C;
-  --accent-orange-subtle: #FFF7ED;
-  --accent-orange-border: #FED7AA;
+  /* Accent (Amber / Orange) */
+  --accent-orange: #E6A11A;
+  --accent-orange-hover: #C98A10;
+  --accent-orange-subtle: #FEF3C7;
+  --accent-orange-border: #FDE68A;
 
   /* Borders & Dividers */
-  --border-subtle: #E2E8F0;
-  --border-default: #CBD5E1;
-  --border-strong: #94A3B8;
-  --border-focus: #2563EB;
+  --border-subtle: #D7E0EA;
+  --border-default: #D7E0EA;
+  --border-strong: #AEC1D5;
+  --border-focus: #1683E8;
 
-  /* Threat Semantics */
-  --threat-benign: #16A34A;
-  --threat-benign-bg: #DCFCE7;
-  --threat-benign-border: #BBF7D0;
-  --threat-benign-text: #15803D;
+  /* Threat & Status Semantics */
+  --threat-benign: #16A36A;
+  --threat-benign-bg: #E6F8F0;
+  --threat-benign-border: #A3E9C8;
+  --threat-benign-text: #0E7048;
 
-  --threat-suspicious: #D97706;
-  --threat-suspicious-bg: #FEF3C7;
+  --threat-suspicious: #E6A11A;
+  --threat-suspicious-bg: #FFFBEB;
   --threat-suspicious-border: #FDE68A;
-  --threat-suspicious-text: #B45309;
+  --threat-suspicious-text: #92400E;
 
-  --threat-malicious: #DC2626;
-  --threat-malicious-bg: #FEE2E2;
-  --threat-malicious-border: #FECACA;
-  --threat-malicious-text: #B91C1C;
+  --threat-malicious: #D64545;
+  --threat-malicious-bg: #FEEBEB;
+  --threat-malicious-border: #F8B4B4;
+  --threat-malicious-text: #A82020;
 
-  --threat-neutral: #475569;
-  --threat-neutral-bg: #F1F5F9;
-  --threat-neutral-border: #E2E8F0;
-  --threat-neutral-text: #334155;
+  --threat-neutral: #64748B;
+  --threat-neutral-bg: #F1F4F8;
+  --threat-neutral-border: #D7E0EA;
+  --threat-neutral-text: #475569;
 
   /* Status Colors */
-  --status-running: #2563EB;
-  --status-running-bg: #EFF6FF;
-  --status-completed: #16A34A;
-  --status-completed-bg: #DCFCE7;
+  --status-running: #1683E8;
+  --status-running-bg: #EBF4FE;
+  --status-completed: #16A36A;
+  --status-completed-bg: #E6F8F0;
   --status-pending: #64748B;
-  --status-pending-bg: #F1F5F9;
-  --status-failed: #DC2626;
-  --status-failed-bg: #FEE2E2;
+  --status-pending-bg: #F1F4F8;
+  --status-failed: #D64545;
+  --status-failed-bg: #FEEBEB;
 
   /* Typography Sizes & Families */
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: 'Aptos', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, "Courier New", monospace;
 
   --text-xs: 0.75rem;    /* 12px */
@@ -96,19 +103,19 @@
   --space-8: 2rem;     /* 32px */
   --space-10: 2.5rem;  /* 40px */
 
-  /* Border Radii (Crisp, moderate) */
-  --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  /* Border Radii (10-12px modern forensic geometry) */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
 
-  /* Subtle, crisp shadows (thin elevation) */
-  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-  --shadow-panel: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
-  --shadow-modal: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
+  /* Subtle, controlled shadows with slight ambient glow */
+  --shadow-sm: 0 1px 2px 0 rgba(23, 36, 58, 0.03), 0 0 10px rgba(22, 131, 232, 0.05);
+  --shadow-panel: 0 1px 3px 0 rgba(23, 36, 58, 0.04), 0 0 16px rgba(22, 131, 232, 0.07);
+  --shadow-modal: 0 10px 25px -5px rgba(23, 36, 58, 0.12), 0 0 24px rgba(22, 131, 232, 0.12);
 
   /* Layout dimensions */
-  --header-height: 56px;
+  --header-height: 54px;
   --sidebar-width: 240px;
 
   /* Z-Index */

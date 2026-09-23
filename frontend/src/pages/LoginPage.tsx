@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { AlertCircle, LogIn, Zap, Key } from 'lucide-react';
+import { AlertCircle, LogIn, Zap, Key, ArrowLeft } from 'lucide-react';
 import { Button, Input } from '../components';
 import { SandeshSetuLogo } from '../components/brand';
 import { useAuth } from '../auth/AuthContext';
@@ -91,9 +91,16 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="auth-page-container">
+      <div className="auth-topbar">
+        <button type="button" className="sandesh-back-btn" onClick={() => navigate('/')}>
+          <ArrowLeft size={16} />
+          <span>Back to Home</span>
+        </button>
+      </div>
+
       <div className="auth-card">
-        <div className="auth-brand" style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--space-4)' }}>
-          <SandeshSetuLogo variant="lockup" size={24} showSubtitle={true} />
+        <div className="auth-brand" style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+          <SandeshSetuLogo variant="lockup" size={26} theme="light" showSubtitle={true} />
         </div>
 
         <div className="auth-header">
@@ -146,52 +153,24 @@ export const LoginPage: React.FC = () => {
           </Button>
         </form>
 
-        {/* Sandbox Quick Access Banner & Button */}
-        <div 
-          style={{
-            marginTop: 'var(--space-4)',
-            marginBottom: 'var(--space-2)',
-            padding: '12px 14px',
-            backgroundColor: 'rgba(16, 185, 129, 0.08)',
-            border: '1px solid rgba(16, 185, 129, 0.25)',
-            borderRadius: '8px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', fontSize: '13px', color: '#10b981', fontWeight: 600 }}>
+        {/* Sandbox Quick Access Banner & Button (Slow Hover Reveal) */}
+        <div className="auth-sandbox-card">
+          <div className="auth-sandbox-header">
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Zap size={15} /> Sandbox Quick Access
             </span>
           </div>
 
-          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: '1.5' }}>
-            <div><strong>Email:</strong> <code style={{ color: 'var(--color-text-primary)' }}>admin@forensics.local</code></div>
-            <div><strong>Password:</strong> <code style={{ color: 'var(--color-text-primary)' }}>••••••••••••</code></div>
+          <div className="auth-sandbox-creds">
+            <div><strong>Email:</strong> <code>admin@forensics.local</code></div>
+            <div><strong>Password:</strong> <code>Admin12345!</code></div>
           </div>
 
           <button
             type="button"
             onClick={handleSandboxLogin}
             disabled={isSubmitting}
-            style={{
-              marginTop: '4px',
-              padding: '8px 12px',
-              backgroundColor: '#10b981',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
-            }}
+            className="auth-sandbox-btn"
           >
             <Key size={14} /> Quick Sandbox Login
           </button>

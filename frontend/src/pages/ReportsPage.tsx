@@ -11,6 +11,7 @@ export const ReportsPage: React.FC = () => {
       <SectionHeader
         title="Forensic Reports"
         description="Cryptographic case summaries, chain-of-custody verification documents, and audit logs."
+        showBack={true}
       />
 
       <Panel

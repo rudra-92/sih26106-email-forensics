@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, UserPlus } from 'lucide-react';
+import { AlertCircle, CheckCircle2, UserPlus, ArrowLeft } from 'lucide-react';
 import { Button, Input } from '../components';
 import { SandeshSetuLogo } from '../components/brand';
 import { useAuth } from '../auth/AuthContext';
@@ -105,9 +105,16 @@ export const RegisterPage: React.FC = () => {
 
   return (
     <div className="auth-page-container">
+      <div className="auth-topbar">
+        <button type="button" className="sandesh-back-btn" onClick={() => navigate('/')}>
+          <ArrowLeft size={16} />
+          <span>Back to Home</span>
+        </button>
+      </div>
+
       <div className="auth-card">
-        <div className="auth-brand" style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--space-4)' }}>
-          <SandeshSetuLogo variant="lockup" size={24} showSubtitle={true} />
+        <div className="auth-brand" style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+          <SandeshSetuLogo variant="lockup" size={26} theme="light" showSubtitle={true} />
         </div>
 
         <div className="auth-header">
@@ -118,16 +125,17 @@ export const RegisterPage: React.FC = () => {
         {successMessage && (
           <div 
             style={{
-              padding: '12px 14px',
-              backgroundColor: 'rgba(16, 185, 129, 0.12)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              borderRadius: '8px',
-              color: '#10b981',
-              fontSize: '13px',
+              padding: '10px 12px',
+              backgroundColor: '#ecf7ef',
+              border: '1px solid #c2e2cc',
+              borderRadius: '6px',
+              color: '#166534',
+              fontSize: '12.5px',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              marginBottom: 'var(--space-4)'
+              marginBottom: '16px',
+              fontFamily: 'Aptos, Segoe UI, system-ui, sans-serif'
             }}
             role="status"
           >
