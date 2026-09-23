@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { authService } from './authService';
+import { supabase } from '../lib/supabase';
+import { authService, mapSupabaseUser } from './authService';
 import { getStoredToken, setStoredToken } from '../api/client';
 import type {
   AuthContextType,
@@ -17,30 +18,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(getStoredToken());
 
-  // Logout action: wipe credentials and reset state
-  const logout = useCallback(() => {
-    setStoredToken(null);
-    setToken(null);
-    setUser(null);
-    setStatus('unauthenticated');
-  }, []);
-
-  // Session restoration on startup
-  const restoreSession = useCallback(async () => {
-    const existingToken = getStoredToken();
-    if (!existingToken) {
-      setStatus('unauthenticated');
-      setUser(null);
-      return;
-    }
-
+  // Logout action: sign out from Supabase, wipe credentials, and reset local state
+  const logout = useCallback(async () => {
     try {
-      const currentUser = await authService.getMe();
-      setUser(currentUser);
-      setToken(existingToken);
-      setStatus('authenticated');
-    } catch {
-      // Token invalid or expired: clear storage and reset to unauthenticated
+      await authService.logout();
+    } catch (err) {
+      console.warn('[AuthContext] Logout exception:', err);
+    } finally {
       setStoredToken(null);
       setToken(null);
       setUser(null);
@@ -48,21 +32,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  // Session restoration and real-time subscription
   useEffect(() => {
-    restoreSession();
+    let mounted = true;
 
-    // Listen for unauthorized events emitted by apiClient 401 interceptor
+    // 1. Initial Supabase session check
+    supabase.auth
+      .getSession()
+      .then(({ data: { session }, error }) => {
+        if (!mounted) return;
+        if (error || !session?.user) {
+          setStoredToken(null);
+          setToken(null);
+          setUser(null);
+          setStatus('unauthenticated');
+          return;
+        }
+
+        setStoredToken(session.access_token);
+        setToken(session.access_token);
+        setUser(mapSupabaseUser(session.user));
+        setStatus('authenticated');
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setStoredToken(null);
+        setToken(null);
+        setUser(null);
+        setStatus('unauthenticated');
+      });
+
+    // 2. Real-time auth state change subscription
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      if (session?.user) {
+        setStoredToken(session.access_token);
+        setToken(session.access_token);
+        setUser(mapSupabaseUser(session.user));
+        setStatus('authenticated');
+      } else {
+        setStoredToken(null);
+        setToken(null);
+        setUser(null);
+        setStatus('unauthenticated');
+      }
+    });
+
+    // 3. Listen for unauthorized events emitted by apiClient 401 interceptor
     const handleUnauthorized = () => {
       logout();
     };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
+
     return () => {
+      mounted = false;
+      subscription.unsubscribe();
       window.removeEventListener('auth:unauthorized', handleUnauthorized);
     };
-  }, [restoreSession, logout]);
+  }, [logout]);
 
-  // Login flow
+  // Login flow via Supabase
   const login = async (payload: LoginPayload): Promise<void> => {
     const response = await authService.login(payload);
     setStoredToken(response.access_token);
@@ -71,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setStatus('authenticated');
   };
 
-  // Register flow
+  // Register flow via Supabase
   const register = async (payload: RegisterPayload): Promise<RegisterResponse> => {
     return await authService.register(payload);
   };

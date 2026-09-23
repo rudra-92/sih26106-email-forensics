@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { AlertCircle, LogIn } from 'lucide-react';
+import { AlertCircle, LogIn, Zap, Key } from 'lucide-react';
 import { Button, Input } from '../components';
 import { SandeshSetuLogo } from '../components/brand';
 import { useAuth } from '../auth/AuthContext';
@@ -20,6 +20,30 @@ export const LoginPage: React.FC = () => {
   // Field validation errors
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+
+  const handleSandboxLogin = async () => {
+    const sandboxEmail = 'admin@forensics.local';
+    const sandboxPassword = 'Admin12345!';
+
+    setEmail(sandboxEmail);
+    setPassword(sandboxPassword);
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      await login({
+        email: sandboxEmail,
+        password: sandboxPassword,
+      });
+
+      const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/cases';
+      navigate(from, { replace: true });
+    } catch (err: unknown) {
+      setErrorMessage(formatAuthError(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const validate = (): boolean => {
     let valid = true;
@@ -121,6 +145,57 @@ export const LoginPage: React.FC = () => {
             Sign in to Console
           </Button>
         </form>
+
+        {/* Sandbox Quick Access Banner & Button */}
+        <div 
+          style={{
+            marginTop: 'var(--space-4)',
+            marginBottom: 'var(--space-2)',
+            padding: '12px 14px',
+            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            borderRadius: '8px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', fontSize: '13px', color: '#10b981', fontWeight: 600 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Zap size={15} /> Sandbox Quick Access
+            </span>
+          </div>
+
+          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: '1.5' }}>
+            <div><strong>Email:</strong> <code style={{ color: 'var(--color-text-primary)' }}>admin@forensics.local</code></div>
+            <div><strong>Password:</strong> <code style={{ color: 'var(--color-text-primary)' }}>••••••••••••</code></div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSandboxLogin}
+            disabled={isSubmitting}
+            style={{
+              marginTop: '4px',
+              padding: '8px 12px',
+              backgroundColor: '#10b981',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
+            }}
+          >
+            <Key size={14} /> Quick Sandbox Login
+          </button>
+        </div>
 
         <div className="auth-footer">
           <span>Need an investigator account?</span>

@@ -13,21 +13,18 @@ DEFAULT_STORAGE_DIR = BASE_DIR / "backend" / "storage" / "cases"
 
 # Load local environment configuration (.env is excluded from git)
 load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / "frontend" / ".env")
 
-# PostgreSQL Database Configuration (dedicated application user)
-DEFAULT_DATABASE_URL = (
-    "postgresql+psycopg://sih26106_app@localhost:5433/sih26106"
-)
-DEFAULT_TEST_DATABASE_URL = (
-    "postgresql+psycopg://sih26106_app@localhost:5433/sih26106_test"
-)
+# PostgreSQL / SQLite Database Configuration
+DEFAULT_DATABASE_URL = "sqlite:///./sih26106.db"
+DEFAULT_TEST_DATABASE_URL = "sqlite:///./sih26106_test.db"
 
 DATABASE_URL = os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", DEFAULT_TEST_DATABASE_URL
 )
 
-# JWT Authentication Settings
+# JWT Authentication Settings (Legacy & Local fallback)
 _raw_jwt_secret = os.environ.get("JWT_SECRET_KEY")
 if not _raw_jwt_secret:
     _raw_jwt_secret = secrets.token_hex(32)
@@ -37,6 +34,19 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 )
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
+
+# Supabase Auth Configuration
+SUPABASE_URL = (
+    os.environ.get("SUPABASE_URL")
+    or os.environ.get("VITE_SUPABASE_URL")
+    or "https://xbaulrosqdphmuedhoyk.supabase.co"
+)
+SUPABASE_ANON_KEY = (
+    os.environ.get("SUPABASE_ANON_KEY")
+    or os.environ.get("VITE_SUPABASE_ANON_KEY")
+    or "sb_publishable_aIM4zAeG2O2xM5_MINImkQ_QEryfxmc"
+)
+SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET")
 
 # Optional Admin Bootstrap Settings
 BOOTSTRAP_ADMIN_EMAIL = os.environ.get("BOOTSTRAP_ADMIN_EMAIL")

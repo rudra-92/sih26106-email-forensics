@@ -27,7 +27,7 @@ from backend.db.models import (
     CaseRelationship,
     User,
 )
-from backend.db.session import get_db
+from backend.db.session import create_db_engine, get_db
 from backend.main import app
 from backend.repositories.case_repository import CaseRepository
 from backend.repositories.user_repository import UserRepository
@@ -35,11 +35,7 @@ from backend.services.analysis_service import AnalysisService
 from backend.services.case_service import CaseService
 
 # Dedicated test engine bound to TEST_DATABASE_URL
-test_engine = create_engine(
-    config.TEST_DATABASE_URL,
-    pool_pre_ping=True,
-    echo=False,
-)
+test_engine = create_db_engine(config.TEST_DATABASE_URL)
 
 TestSessionLocal = sessionmaker(
     bind=test_engine,

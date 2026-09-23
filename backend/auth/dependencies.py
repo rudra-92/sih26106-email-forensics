@@ -1,4 +1,4 @@
-"""FastAPI authentication and authorization dependencies."""
+"""FastAPI authentication and authorization dependencies supporting Supabase Auth."""
 
 from __future__ import annotations
 
@@ -23,11 +23,10 @@ def get_current_user(
     ),
     db: Session = Depends(get_db),
 ) -> User:
-    """Validate JWT bearer token and retrieve active user from database.
+    """Validate Supabase JWT bearer token and retrieve or auto-provision active user.
 
     Raises:
-        HTTPException (401): If token is missing, expired, invalid, or
-            user inactive.
+        HTTPException (401): If token is missing, expired, invalid, or user inactive.
     """
     if credentials is None or not credentials.credentials:
         raise HTTPException(
@@ -54,8 +53,14 @@ def get_current_user(
             detail="Invalid or malformed authentication token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Authentication failed: {exc}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    user_id = payload.get("sub")
+    user_id = payload.get("sub") or payload.get("id")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -63,21 +68,55 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_repo = UserRepository(session=db)
-    user = user_repo.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User account associated with this token was not found.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    email = str(payload.get("email") or "").strip().lower()
+    user_metadata = payload.get("user_metadata") if isinstance(payload.get("user_metadata"), dict) else {}
+    app_metadata = payload.get("app_metadata") if isinstance(payload.get("app_metadata"), dict) else {}
 
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User account is deactivated. Access denied.",
-            headers={"WWW-Authenticate": "Bearer"},
+    raw_role = (
+        payload.get("role")
+        or user_metadata.get("role")
+        or app_metadata.get("role")
+    )
+    if raw_role in ["admin", "investigator"]:
+        role = raw_role
+    else:
+        role = "admin" if email == "admin@forensics.local" else "investigator"
+
+    full_name = (
+        user_metadata.get("full_name")
+        or user_metadata.get("name")
+        or (email.split("@")[0].capitalize() if email else "Investigator")
+    )
+
+    user_repo = UserRepository(session=db)
+    user = user_repo.get_user_by_id(str(user_id))
+
+    if not user and email:
+        # Check if matching user exists by email (e.g. from local bootstrap)
+        user = user_repo.get_user_by_email(email)
+
+    if not user:
+        # Auto-provision Supabase user in local DB to satisfy relational foreign keys
+        user = user_repo.create_user(
+            user_id=str(user_id),
+            email=email or f"{user_id}@supabase.local",
+            password_hash="supabase_auth_managed",
+            full_name=full_name,
+            role=role,
+            is_active=True,
         )
+    else:
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account is deactivated. Access denied.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        # Keep admin role in sync if admin email is matched
+        if role == "admin" and user.role != "admin":
+            user.role = "admin"
+            db.commit()
+            db.refresh(user)
 
     return user
 

@@ -11,15 +11,23 @@ from ..config import DATABASE_URL
 
 logger = logging.getLogger(__name__)
 
-# Connection pool tuning
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-    pool_recycle=1800,
-    echo=False,
-)
+def create_db_engine(url: str):
+    if url.startswith("sqlite"):
+        return create_engine(
+            url,
+            connect_args={"check_same_thread": False},
+            echo=False,
+        )
+    return create_engine(
+        url,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=1800,
+        echo=False,
+    )
+
+engine = create_db_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(
     bind=engine,

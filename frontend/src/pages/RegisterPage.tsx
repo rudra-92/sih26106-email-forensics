@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, UserPlus } from 'lucide-react';
+import { AlertCircle, CheckCircle2, UserPlus } from 'lucide-react';
 import { Button, Input } from '../components';
 import { SandeshSetuLogo } from '../components/brand';
 import { useAuth } from '../auth/AuthContext';
@@ -17,6 +17,7 @@ export const RegisterPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Field validation errors
   const [nameError, setNameError] = useState('');
@@ -47,8 +48,8 @@ export const RegisterPage: React.FC = () => {
     if (!password) {
       setPasswordError('Password is required.');
       valid = false;
-    } else if (password.length < 8) {
-      setPasswordError('Password must be at least 8 characters.');
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters.');
       valid = false;
     }
 
@@ -66,25 +67,35 @@ export const RegisterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setSuccessMessage(null);
 
     if (!validate()) return;
 
     setIsSubmitting(true);
     try {
-      // 1. Register investigator account
+      // 1. Register investigator account via Supabase
       await register({
         full_name: fullName.trim(),
         email: email.trim(),
         password,
       });
 
-      // 2. Automatically log in to establish session
-      await login({
-        email: email.trim(),
-        password,
-      });
+      // 2. Automatically establish session if email confirmation is disabled
+      try {
+        await login({
+          email: email.trim(),
+          password,
+        });
 
-      navigate('/cases', { replace: true });
+        navigate('/cases', { replace: true });
+      } catch (loginErr: unknown) {
+        const msg = formatAuthError(loginErr);
+        if (msg.toLowerCase().includes('verify your email')) {
+          setSuccessMessage('Registration successful! Please check your email inbox to verify your account before logging in.');
+        } else {
+          setSuccessMessage('Registration successful! You may now sign in to your account.');
+        }
+      }
     } catch (err: unknown) {
       setErrorMessage(formatAuthError(err));
     } finally {
@@ -103,6 +114,27 @@ export const RegisterPage: React.FC = () => {
           <h1 className="auth-title">Register Investigator Account</h1>
           <p className="auth-subtitle">Create workstation credentials for forensic case investigation.</p>
         </div>
+
+        {successMessage && (
+          <div 
+            style={{
+              padding: '12px 14px',
+              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '8px',
+              color: '#10b981',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: 'var(--space-4)'
+            }}
+            role="status"
+          >
+            <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+            <span>{successMessage}</span>
+          </div>
+        )}
 
         {errorMessage && (
           <div className="auth-error-banner" role="alert" aria-live="assertive">

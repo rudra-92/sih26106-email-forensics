@@ -19,7 +19,8 @@ from .config import (
     BOOTSTRAP_ADMIN_NAME,
     BOOTSTRAP_ADMIN_PASSWORD,
 )
-from .db.session import SessionLocal, check_db_connection
+from .db import Base
+from .db.session import SessionLocal, check_db_connection, engine
 from .repositories.case_repository import ConcurrencyConflictError
 from .repositories.user_repository import UserRepository
 from .auth.security import hash_password
@@ -60,7 +61,12 @@ app.include_router(analysis_router)
 
 @app.on_event("startup")
 def startup_bootstrap() -> None:
-    """Optionally bootstrap initial admin from environment variables."""
+    """Optionally bootstrap initial admin from environment variables and ensure schema exists."""
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as exc:
+        logger.warning("Database schema creation check failed: %s", exc)
+
     if BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD:
         db = SessionLocal()
         try:
