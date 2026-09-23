@@ -151,11 +151,29 @@ class TestForensicPipeline(unittest.TestCase):
         urls = analyzer.extract_urls(text_plain=text)
         self.assertEqual(len(urls), 2)
         self.assertIn("https://secure.bank.com/login", urls)
+        self.assertIn("http://update.portal.org/home", urls)
+
+    def test_url_extraction_deduplication(self):
+        """Regression test: verify identical URLs in text and HTML are cleanly deduplicated."""
+        analyzer = URLAnalyzer()
+        text_plain = "Check https://secure.bank.com/login twice: https://secure.bank.com/login"
+        text_html = '<a href="https://secure.bank.com/login">Bank</a> <a href="http://update.portal.org/home">Update</a>'
+        urls = analyzer.extract_urls(text_plain=text_plain, text_html=text_html)
+        self.assertEqual(len(urls), 2)
+        self.assertEqual(urls, ["http://update.portal.org/home", "https://secure.bank.com/login"])
 
     # 11. IP-based URL Detection
     def test_ip_based_url_detection(self):
         analyzer = URLAnalyzer()
         feats, ev = analyzer.analyze(text_plain="Click here: http://198.51.100.42:8080/session/verify")
+        self.assertEqual(feats["ip_based_url_count"], 1)
+        self.assertEqual(feats["has_ip_as_hostname"], 1)
+        self.assertEqual(feats["url_with_port_count"], 1)
+
+    def test_ipv6_based_url_detection(self):
+        """Regression test: verify IPv6 URLs with non-default ports are recognized."""
+        analyzer = URLAnalyzer()
+        feats, ev = analyzer.analyze(text_plain="Check http://[2001:db8::1]:8443/auth/status")
         self.assertEqual(feats["ip_based_url_count"], 1)
         self.assertEqual(feats["has_ip_as_hostname"], 1)
         self.assertEqual(feats["url_with_port_count"], 1)
@@ -185,22 +203,78 @@ class TestForensicPipeline(unittest.TestCase):
     # 15. PE Static Analysis
     def test_pe_static_analysis(self):
         analyzer = PEAnalyzer()
+        # Build minimal structurally valid 32-bit PE binary with COFF, optional, and section headers
         pe_bytes = bytearray(512)
+        # DOS Header
         pe_bytes[0:2] = b"MZ"
-        pe_bytes[0x3C:0x40] = (0x80).to_bytes(4, byteorder="little")
+        pe_bytes[0x3C:0x40] = (0x80).to_bytes(4, byteorder="little")  # e_lfanew = 0x80
+
+        # PE Signature at 0x80
         pe_bytes[0x80:0x84] = b"PE\x00\x00"
-        pe_bytes[0x84:0x86] = (0x014C).to_bytes(2, byteorder="little")
-        pe_bytes[0x86:0x88] = (1).to_bytes(2, byteorder="little")
+
+        # COFF File Header (20 bytes starting at 0x84)
+        pe_bytes[0x84:0x86] = (0x014C).to_bytes(2, byteorder="little")  # Machine = i386
+        pe_bytes[0x86:0x88] = (1).to_bytes(2, byteorder="little")       # NumberOfSections = 1
+        pe_bytes[0x88:0x8C] = (0).to_bytes(4, byteorder="little")       # TimeDateStamp = 0
+        pe_bytes[0x8C:0x90] = (0).to_bytes(4, byteorder="little")       # PointerToSymbolTable = 0
+        pe_bytes[0x90:0x94] = (0).to_bytes(4, byteorder="little")       # NumberOfSymbols = 0
+        opt_size = 224
+        pe_bytes[0x94:0x96] = (opt_size).to_bytes(2, byteorder="little") # SizeOfOptionalHeader = 224
+        pe_bytes[0x96:0x98] = (0x0102).to_bytes(2, byteorder="little")  # Characteristics = EXECUTABLE_IMAGE | 32BIT_MACHINE
+
+        # Optional Header starting at 0x98 (224 bytes)
+        pe_bytes[0x98:0x9A] = (0x010B).to_bytes(2, byteorder="little")  # Magic = PE32
+
+        # Section Table starting at 0x98 + 224 = 0x178 (40 bytes per section)
+        sec_offset = 0x98 + opt_size
+        pe_bytes[sec_offset:sec_offset+8] = b".text\x00\x00\x00"        # Section Name = .text
+        pe_bytes[sec_offset+8:sec_offset+12] = (0x100).to_bytes(4, byteorder="little")  # VirtualSize
+        pe_bytes[sec_offset+12:sec_offset+16] = (0x1000).to_bytes(4, byteorder="little") # VirtualAddress
+        pe_bytes[sec_offset+16:sec_offset+20] = (0x200).to_bytes(4, byteorder="little")  # SizeOfRawData
+        pe_bytes[sec_offset+20:sec_offset+24] = (0x200).to_bytes(4, byteorder="little")  # PointerToRawData
+        pe_bytes[sec_offset+36:sec_offset+40] = (0x60000020).to_bytes(4, byteorder="little") # Characteristics = CODE | EXECUTE | READ
+
         feats, ev = analyzer.analyze_bytes(bytes(pe_bytes))
         self.assertEqual(feats["is_pe"], 1)
+        self.assertEqual(feats["section_count"], 1)
+        self.assertIn(".text", ev.get("section_names", []))
 
     # 16. Office Macro Analysis
     def test_office_macro_analysis(self):
+        import io
+        import zipfile
+
+        # Generate a minimal structurally valid macro-bearing OOXML (.docm) artifact locally in-memory
+        bio = io.BytesIO()
+        with zipfile.ZipFile(bio, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="bin" ContentType="application/vnd.ms-office.vbaProject"/></Types>')
+            zf.writestr("word/document.xml", '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p/></w:body></w:document>')
+            vba_content = b"Sub AutoOpen()\n  Shell(\"calc.exe\")\nEnd Sub"
+            zf.writestr("word/vbaProject.bin", vba_content)
+        data = bio.getvalue()
+
         analyzer = DocumentAnalyzer()
-        data = b"\xd0\xcf\x11\xe0" + b"\x00" * 500 + b"Sub AutoOpen()\n  Shell(\"calc.exe\")\nEnd Sub"
         feats, ev = analyzer.analyze_bytes("test_macro.docm", data)
         self.assertEqual(feats["has_macro"], 1)
         self.assertEqual(feats["suspicious_macro_indicator"], 1)
+        self.assertIn("word/vbaProject.bin", ev["vba_streams"])
+
+    def test_office_document_without_macro_not_flagged(self):
+        """Verify standard OOXML document without VBA project is not flagged as having macros."""
+        import io
+        import zipfile
+
+        bio = io.BytesIO()
+        with zipfile.ZipFile(bio, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>')
+            # Text body mentions Sub AutoOpen, but there is NO vbaProject.bin stream
+            zf.writestr("word/document.xml", '<w:body><w:p><w:r><w:t>Sub AutoOpen()</w:t></w:r></w:p></w:body>')
+        clean_data = bio.getvalue()
+
+        analyzer = DocumentAnalyzer()
+        feats, ev = analyzer.analyze_bytes("report.docx", clean_data)
+        self.assertEqual(feats["has_macro"], 0)
+        self.assertEqual(feats["suspicious_macro_indicator"], 0)
 
     # 17. PDF Active Content Analysis
     def test_pdf_analysis(self):
@@ -221,28 +295,39 @@ class TestForensicPipeline(unittest.TestCase):
 
     # 19. Model 1 Probability Integration (Real Model Artifact)
     def test_model1_probability_integration(self):
-        m1_lr = "ml/models/model1d_word_char_filtered_lr.joblib"
-        m1_vec = "ml/models/model1d_word_char_filtered_vectorizer.joblib"
-        if not (os.path.exists(m1_lr) and os.path.exists(m1_vec)):
-            self.skipTest("Model 1 artifacts not present; skipping real-model inference test.")
+        self.assertIsNotNone(self.pipeline.model1_model, "Model 1 LR artifact should be loaded")
+        self.assertIsNotNone(self.pipeline.model1_vectorizer, "Model 1 vectorizer should be loaded")
 
         probs = self.pipeline.predict_model1_probabilities("URGENT: Verify your PayPal account password now!")
-        self.assertIn("nlp_prob_legitimate", probs)
-        self.assertIn("nlp_prob_phishing", probs)
-        self.assertIn("nlp_prob_fraud", probs)
-        self.assertIn("nlp_prob_spam", probs)
-        # Should sum approximately to 1.0 (for 3 classes)
+        for key in ("nlp_prob_legitimate", "nlp_prob_phishing", "nlp_prob_fraud", "nlp_prob_spam"):
+            self.assertIn(key, probs)
+            self.assertTrue(np.isfinite(probs[key]), f"{key} must be finite")
+            self.assertTrue(0.0 <= probs[key] <= 1.0, f"{key} must be in [0, 1]")
+
+        # Missing class spam is mapped deterministically to 0.0
+        self.assertEqual(probs["nlp_prob_spam"], 0.0)
+
+        # Classes in trained model: ['fraud_related', 'legitimate', 'phishing']
+        self.assertEqual(self.pipeline.model1_classes, ["fraud_related", "legitimate", "phishing"])
+
+        # Real probabilities must sum approximately to 1.0
         total_prob = probs["nlp_prob_legitimate"] + probs["nlp_prob_phishing"] + probs["nlp_prob_fraud"]
         self.assertAlmostEqual(total_prob, 1.0, delta=0.05)
 
+        # Verify no NaN enters Model 3 feature vector
+        feats, ev = self.pipeline.extract_features({"subject": "URGENT", "body": "Verify account password"})
+        for k in ("nlp_prob_legitimate", "nlp_prob_phishing", "nlp_prob_fraud", "nlp_prob_spam"):
+            self.assertIn(k, feats)
+            self.assertTrue(np.isfinite(feats[k]), f"Feature {k} must be finite in feature set")
+
     def test_model1_uninitialized_default_probabilities(self):
         """When Model 1 artifacts are absent, pipeline must return explicit default NaN state."""
-        if self.pipeline.model1_model is None or self.pipeline.model1_vectorizer is None:
-            probs = self.pipeline.predict_model1_probabilities("Any test message")
-            self.assertTrue(np.isnan(probs["nlp_prob_legitimate"]))
-            self.assertTrue(np.isnan(probs["nlp_prob_phishing"]))
-            self.assertTrue(np.isnan(probs["nlp_prob_fraud"]))
-            self.assertEqual(probs["nlp_prob_spam"], 0.0)
+        uninit_pipeline = ForensicFeaturePipeline(model1_lr_path="nonexistent_lr.joblib", model1_vec_path="nonexistent_vec.joblib")
+        probs = uninit_pipeline.predict_model1_probabilities("Any test message")
+        self.assertTrue(np.isnan(probs["nlp_prob_legitimate"]))
+        self.assertTrue(np.isnan(probs["nlp_prob_phishing"]))
+        self.assertTrue(np.isnan(probs["nlp_prob_fraud"]))
+        self.assertEqual(probs["nlp_prob_spam"], 0.0)
 
     def test_model1_probability_output_mapping_with_stub(self):
         """Verify probability output mapping contract using an in-memory test stub."""

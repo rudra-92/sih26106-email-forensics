@@ -48,6 +48,21 @@ from .document_analyzer import DocumentAnalyzer
 from .pdf_analyzer import PDFAnalyzer
 from .yara_scanner import YaraScanner
 
+WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+
+def _resolve_repo_path(path: str) -> str:
+    """Resolves a file path, checking cwd first, then falling back to repo root."""
+    if not path or os.path.isabs(path):
+        return path
+    if os.path.exists(path):
+        return os.path.abspath(path)
+    candidate = os.path.join(WORKSPACE_ROOT, path)
+    if os.path.exists(candidate):
+        return candidate
+    return path
+
+
 logger = logging.getLogger("ForensicFeaturePipeline")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -60,45 +75,57 @@ class ForensicFeaturePipeline:
         config_path: str = "ml/configs/forensic_config.yaml",
         rules_dir: str = "rules",
         model1_lr_path: str = "ml/models/model1d_word_char_filtered_lr.joblib",
-        model1_vec_path: str = "ml/models/model1d_word_char_filtered_vectorizer.joblib"
+        model1_vec_path: str = "ml/models/model1d_word_char_filtered_vectorizer.joblib",
+        model1_model: Optional[Any] = None,
+        model1_vectorizer: Optional[Any] = None,
     ):
-        self.config_path = config_path
-        self.rules_dir = rules_dir
+        self.config_path = _resolve_repo_path(config_path)
+        self.rules_dir = _resolve_repo_path(rules_dir)
 
         # Initialize modular analyzers
         self.header_analyzer = HeaderAnalyzer()
         self.auth_analyzer = AuthAnalyzer()
         self.received_analyzer = ReceivedAnalyzer()
         self.ip_analyzer = IPAnalyzer()
-        self.domain_analyzer = DomainAnalyzer(config_path=config_path)
+        self.domain_analyzer = DomainAnalyzer(config_path=self.config_path)
         self.url_analyzer = URLAnalyzer()
-        self.content_analyzer = ContentAnalyzer(config_path=config_path)
+        self.content_analyzer = ContentAnalyzer(config_path=self.config_path)
         self.attachment_analyzer = AttachmentAnalyzer()
         self.pe_analyzer = PEAnalyzer()
         self.document_analyzer = DocumentAnalyzer()
         self.pdf_analyzer = PDFAnalyzer()
-        self.yara_scanner = YaraScanner(rules_dir=rules_dir)
+        self.yara_scanner = YaraScanner(rules_dir=self.rules_dir)
 
         # Model 1 Integration
-        self.model1_model = None
-        self.model1_vectorizer = None
-        self.model1_classes = []
+        resolved_lr = _resolve_repo_path(model1_lr_path)
+        resolved_vec = _resolve_repo_path(model1_vec_path)
+        self.model1_lr_path = resolved_lr
+        self.model1_vec_path = resolved_vec
 
-        if os.path.exists(model1_lr_path) and os.path.exists(model1_vec_path):
-            try:
-                self.model1_model = joblib.load(model1_lr_path)
-                self.model1_vectorizer = joblib.load(model1_vec_path)
-                self.model1_classes = list(self.model1_model.classes_)
-                logger.info(f"Loaded Model 1D: classes={self.model1_classes}")
-            except Exception as e:
-                logger.warning(f"Could not load Model 1D artifacts: {e}")
-        else:
-            logger.warning(f"Model 1D artifacts not found at {model1_lr_path}")
+        self.model1_model = model1_model
+        self.model1_vectorizer = model1_vectorizer
+        self.model1_classes: List[str] = []
+
+        if self.model1_model is None or self.model1_vectorizer is None:
+            if os.path.exists(resolved_lr) and os.path.exists(resolved_vec):
+                try:
+                    self.model1_model = joblib.load(resolved_lr)
+                    self.model1_vectorizer = joblib.load(resolved_vec)
+                except Exception as e:
+                    logger.warning(f"Could not load Model 1D artifacts: {e}")
+            else:
+                logger.warning(f"Model 1D artifacts not found at {resolved_lr}")
+
+        if self.model1_model is not None:
+            self.model1_classes = list(getattr(self.model1_model, "classes_", []))
+            logger.info(f"Loaded Model 1D: classes={self.model1_classes}")
 
     def predict_model1_probabilities(self, text: str) -> Dict[str, float]:
         """
         Computes 4-class NLP probabilities from Model 1D.
         Classes: legitimate, spam, phishing, fraud_related
+        Handles missing/unavailable classes deterministically (e.g. spam=0.0).
+        Guarantees all returned probabilities are finite in [0.0, 1.0].
         """
         default_probs = {
             "nlp_prob_legitimate": np.nan,
@@ -116,14 +143,23 @@ class ForensicFeaturePipeline:
 
         try:
             feats = self.model1_vectorizer.transform([clean_input])
-            probs = self.model1_model.predict_proba(feats)[0]
-            prob_map = dict(zip(self.model1_classes, probs))
+            raw_probs = self.model1_model.predict_proba(feats)[0]
+            prob_map = dict(zip(self.model1_classes, raw_probs))
+
+            def _clean_prob(val: Any) -> float:
+                try:
+                    f = float(val)
+                    if not np.isfinite(f):
+                        return 0.0
+                    return round(max(0.0, min(1.0, f)), 4)
+                except (ValueError, TypeError):
+                    return 0.0
 
             return {
-                "nlp_prob_legitimate": round(float(prob_map.get("legitimate", 0.0)), 4),
-                "nlp_prob_spam": round(float(prob_map.get("spam", 0.0)), 4),
-                "nlp_prob_phishing": round(float(prob_map.get("phishing", 0.0)), 4),
-                "nlp_prob_fraud": round(float(prob_map.get("fraud_related", 0.0)), 4),
+                "nlp_prob_legitimate": _clean_prob(prob_map.get("legitimate", 0.0)),
+                "nlp_prob_spam": _clean_prob(prob_map.get("spam", 0.0)),
+                "nlp_prob_phishing": _clean_prob(prob_map.get("phishing", 0.0)),
+                "nlp_prob_fraud": _clean_prob(prob_map.get("fraud_related", 0.0)),
             }
         except Exception as e:
             logger.error(f"Error evaluating Model 1 probability: {e}")

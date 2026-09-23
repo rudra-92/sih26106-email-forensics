@@ -40,6 +40,18 @@ from ml.forensic.feature_pipeline import ForensicFeaturePipeline
 CLASS_NAMES = ["fraud_related", "legitimate", "phishing"]
 
 
+def _resolve_path(path: str) -> str:
+    """Resolves relative file path using cwd or WORKSPACE_ROOT."""
+    if not path or os.path.isabs(path):
+        return path
+    if os.path.exists(path):
+        return os.path.abspath(path)
+    cand = os.path.join(WORKSPACE_ROOT, path)
+    if os.path.exists(cand):
+        return cand
+    return path
+
+
 class FusionThreatPredictor:
     """End-to-end Forensic Fusion inference pipeline."""
 
@@ -51,24 +63,34 @@ class FusionThreatPredictor:
         schema_path: str = "ml/models/model3_feature_schema.json",
         config_path: str = "ml/models/model3_config.json"
     ):
+        r_m1_lr = _resolve_path(m1_lr_path)
+        r_m1_vec = _resolve_path(m1_vec_path)
+        r_m3 = _resolve_path(m3_model_path)
+        r_schema = _resolve_path(schema_path)
+
         # 1. Load Model 1D artifacts
-        if not os.path.exists(m1_lr_path) or not os.path.exists(m1_vec_path):
+        if not os.path.exists(r_m1_lr) or not os.path.exists(r_m1_vec):
             raise FileNotFoundError("Model 1D artifacts missing.")
-        self.m1_model = joblib.load(m1_lr_path)
-        self.m1_vec = joblib.load(m1_vec_path)
+        self.m1_model = joblib.load(r_m1_lr)
+        self.m1_vec = joblib.load(r_m1_vec)
         self.m1_classes = list(self.m1_model.classes_)
 
         # 2. Load Model 2 feature pipeline
-        self.m2_pipeline = ForensicFeaturePipeline()
+        self.m2_pipeline = ForensicFeaturePipeline(
+            model1_lr_path=r_m1_lr,
+            model1_vec_path=r_m1_vec,
+            model1_model=self.m1_model,
+            model1_vectorizer=self.m1_vec,
+        )
 
         # 3. Load Model 3 XGBoost
-        if not os.path.exists(m3_model_path):
-            raise FileNotFoundError(f"Model 3 model missing at {m3_model_path}")
+        if not os.path.exists(r_m3):
+            raise FileNotFoundError(f"Model 3 model missing at {r_m3}")
         self.m3_model = xgb.XGBClassifier()
-        self.m3_model.load_model(m3_model_path)
+        self.m3_model.load_model(r_m3)
 
         # 4. Load Schema
-        with open(schema_path, "r", encoding="utf-8") as f:
+        with open(r_schema, "r", encoding="utf-8") as f:
             self.schema = json.load(f)
         self.feature_names = self.schema["feature_names"]
 
@@ -89,7 +111,12 @@ class FusionThreatPredictor:
         # Step 3: Align with exact Model 3 feature schema
         feature_row = {}
         for fname in self.feature_names:
-            feature_row[fname] = features_dict.get(fname, np.nan)
+            val = features_dict.get(fname, np.nan)
+            # Ensure NLP probability features fed to Model 3 are strictly finite and non-NaN
+            if fname in ("nlp_prob_legitimate", "nlp_prob_spam", "nlp_prob_phishing", "nlp_prob_fraud"):
+                if val is None or not np.isfinite(val):
+                    val = 0.0
+            feature_row[fname] = val
 
         df_features = pd.DataFrame([feature_row])[self.feature_names]
 

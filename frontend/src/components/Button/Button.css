@@ -1,0 +1,116 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+  font-weight: var(--font-medium);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.btn:disabled, .btn-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Sizes */
+.btn-sm {
+  font-size: var(--text-xs);
+  padding: 4px 10px;
+  height: 28px;
+}
+
+.btn-md {
+  font-size: var(--text-sm);
+  padding: 6px 14px;
+  height: 34px;
+}
+
+.btn-lg {
+  font-size: var(--text-base);
+  padding: 8px 18px;
+  height: 40px;
+}
+
+/* Variants */
+.btn-primary {
+  background-color: var(--action-primary);
+  color: var(--text-inverse);
+  border-color: var(--action-primary);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--action-primary-hover);
+  border-color: var(--action-primary-hover);
+}
+
+.btn-primary:active:not(:disabled) {
+  background-color: var(--action-primary-active);
+}
+
+.btn-secondary {
+  background-color: var(--bg-surface-subtle);
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.btn-outline {
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: var(--bg-surface-subtle);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.btn-accent {
+  background-color: var(--accent-orange);
+  color: var(--text-inverse);
+  border-color: var(--accent-orange);
+}
+
+.btn-accent:hover:not(:disabled) {
+  background-color: var(--accent-orange-hover);
+  border-color: var(--accent-orange-hover);
+}
+
+.btn-danger {
+  background-color: var(--threat-malicious);
+  color: var(--text-inverse);
+  border-color: var(--threat-malicious);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #B91C1C;
+  border-color: #B91C1C;
+}
+
+/* Spinner */
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 0.6s linear infinite;
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

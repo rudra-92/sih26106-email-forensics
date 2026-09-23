@@ -12,9 +12,9 @@ import ipaddress
 from typing import Dict, List, Any, Optional, Tuple
 import numpy as np
 
-# Robust URL and naked domain extraction pattern allowing dots, colons, and path chars in URL bodies
+# Robust URL and naked domain extraction pattern allowing dots, colons, IPv6 brackets, and path chars in URL bodies
 URL_REGEX = re.compile(
-    r"""(?i)\b(?:https?://|www\d{0,3}[.]|[a-z0-9][a-z0-9\-_.]+\.(?:com|org|net|in|edu|gov|io|co|ai|xyz|tech|info|me|online|site|app|dev)/?)[^\s<>"'()\[\]{}`]*""",
+    r"""(?i)\b(?:https?://[^\s<>"'`]+|www\d{0,3}[.][^\s<>"'()\[\]{}`]+|[a-z0-9][a-z0-9\-_.]+\.(?:com|org|net|in|edu|gov|io|co|ai|xyz|tech|info|me|online|site|app|dev)/?[^\s<>"'()\[\]{}`]*)""",
     re.VERBOSE
 )
 
@@ -22,10 +22,12 @@ _TRAILING_PUNCTUATION = ".,!?;:)>]}'\""
 
 
 def _clean_extracted_url(raw_url: str) -> str:
-    """Strips trailing sentence punctuation while preserving balanced parentheses and query parameters."""
+    """Strips trailing sentence punctuation while preserving balanced parentheses, brackets, and query parameters."""
     url = raw_url
     while url and url[-1] in _TRAILING_PUNCTUATION:
         if url[-1] == ")" and "(" in url:
+            break
+        if url[-1] == "]" and "[" in url:
             break
         url = url[:-1]
     return url
@@ -45,25 +47,34 @@ class URLAnalyzer:
         ])
 
     def extract_urls(self, text_plain: str = "", text_html: str = "") -> List[str]:
-        """Extracts and deduplicates URLs from plain text and HTML."""
+        """Extracts and deduplicates URLs from plain text and HTML with provenance preservation."""
         found_urls = set()
 
         # HTML attributes (href, src)
         if text_html:
             for match in HTML_HREF_REGEX.finditer(text_html):
-                found_urls.add(match.group(1).strip())
+                clean_href = _clean_extracted_url(match.group(1).strip())
+                if clean_href:
+                    found_urls.add(clean_href)
 
-        # Plain text regex
-        combined = f"{text_plain}\n{text_html}"
-        for match in URL_REGEX.finditer(combined):
-            url_str = _clean_extracted_url(match.group(0).strip())
-            if not url_str:
+        # Plain text and stripped HTML body text
+        content_sources = [text_plain]
+        if text_html:
+            stripped_html = re.sub(r"<[^>]+>", " ", text_html)
+            content_sources.append(stripped_html)
+
+        for content in content_sources:
+            if not content:
                 continue
-            # If naked domain or www, add protocol for uniform parsing
-            if not url_str.lower().startswith("http://") and not url_str.lower().startswith("https://"):
-                url_str = "http://" + url_str
-            if url_str.startswith("http://") or url_str.startswith("https://"):
-                found_urls.add(url_str)
+            for match in URL_REGEX.finditer(content):
+                url_str = _clean_extracted_url(match.group(0).strip())
+                if not url_str:
+                    continue
+                # If naked domain or www, add protocol for uniform parsing
+                if not url_str.lower().startswith("http://") and not url_str.lower().startswith("https://") and not url_str.lower().startswith("ftp://"):
+                    url_str = "http://" + url_str
+                if url_str.startswith("http://") or url_str.startswith("https://") or url_str.startswith("ftp://"):
+                    found_urls.add(url_str)
 
         return sorted(list(found_urls))
 

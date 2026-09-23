@@ -1,0 +1,39 @@
+@import './tokens.css';
+@import './reset.css';
+
+/* Common Layout and Utility Classes */
+
+.app-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg-canvas);
+}
+
+.mono-text {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: -0.02em;
+}
+
+.hash-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background-color: var(--bg-surface-subtle);
+  border: 1px solid var(--border-subtle);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  display: inline-block;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

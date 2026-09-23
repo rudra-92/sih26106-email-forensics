@@ -1,0 +1,716 @@
+/* Forensic Evidence Graph Styling */
+
+.graph-wrapper {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 270px);
+  min-height: 540px;
+  background-color: #F8FAFC;
+  border: 1px solid var(--border-subtle, #E2E8F0);
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Toolbar */
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+  padding: 8px 12px;
+  background-color: #FFFFFF;
+  border-bottom: 1px solid var(--border-subtle, #E2E8F0);
+  z-index: 10;
+}
+
+.graph-search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 250px;
+}
+
+.graph-search-icon {
+  position: absolute;
+  left: 8px;
+  color: var(--text-muted, #94A3B8);
+  pointer-events: none;
+}
+
+.graph-search-input {
+  width: 100%;
+  height: 28px;
+  padding: 0 24px 0 26px;
+  font-size: 11px;
+  background-color: #F8FAFC;
+  border: 1px solid var(--border-subtle, #CBD5E1);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-primary, #0F172A);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.graph-search-input:focus {
+  border-color: var(--action-primary, #2563EB);
+  background-color: #FFFFFF;
+}
+
+.graph-search-clear {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted, #94A3B8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+}
+
+.graph-search-clear:hover {
+  color: var(--text-primary, #0F172A);
+}
+
+.graph-match-indicator {
+  font-size: 10px;
+  color: var(--action-primary, #2563EB);
+  font-weight: 600;
+  background-color: #EFF6FF;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #BFDBFE;
+}
+
+.graph-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.graph-filter-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.graph-filter-icon {
+  position: absolute;
+  left: 6px;
+  color: var(--text-muted, #94A3B8);
+  pointer-events: none;
+}
+
+.graph-filter-select {
+  height: 28px;
+  padding: 0 10px 0 22px;
+  font-size: 11px;
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-subtle, #CBD5E1);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-primary, #0F172A);
+  cursor: pointer;
+  outline: none;
+}
+
+.graph-filter-select:focus {
+  border-color: var(--action-primary, #2563EB);
+}
+
+.graph-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.graph-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-subtle, #CBD5E1);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-primary, #0F172A);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.graph-toolbar-btn:hover {
+  background-color: #F8FAFC;
+  border-color: #94A3B8;
+}
+
+.graph-toolbar-btn.btn-active {
+  background-color: #EFF6FF;
+  border-color: #2563EB;
+  color: #2563EB;
+}
+
+.btn-clear-selection {
+  background-color: #F8FAFC;
+  border-color: #CBD5E1;
+  color: #334155;
+}
+
+.btn-clear-selection:hover {
+  background-color: #F1F5F9;
+  border-color: #94A3B8;
+}
+
+.btn-clear-filters {
+  color: var(--action-danger, #DC2626);
+  border-color: #FECACA;
+  background-color: #FEF2F2;
+}
+
+.btn-clear-filters:hover {
+  background-color: #FEE2E2;
+  border-color: #FCA5A5;
+}
+
+.graph-zoom-btn-group {
+  display: inline-flex;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.btn-icon-only {
+  padding: 0 6px !important;
+  border-radius: 0 !important;
+}
+
+.graph-zoom-btn-group .btn-icon-only:first-child {
+  border-top-left-radius: 4px !important;
+  border-bottom-left-radius: 4px !important;
+  border-right: none;
+}
+
+.graph-zoom-btn-group .btn-icon-only:last-child {
+  border-top-right-radius: 4px !important;
+  border-bottom-right-radius: 4px !important;
+}
+
+/* React Flow Canvas Container */
+.graph-canvas-container {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+}
+
+/* Custom Forensic Node */
+.forensic-node {
+  width: 210px;
+  min-height: 52px;
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-left-width: 4px;
+  border-left-style: solid;
+  border-radius: 4px;
+  padding: 6px 9px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: opacity 0.2s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  font-family: inherit;
+  position: relative;
+}
+
+.forensic-node:hover {
+  border-color: #94A3B8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.forensic-node.is-selected {
+  outline: 2px solid #2563EB;
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  background-color: #FFFFFF;
+  z-index: 10;
+}
+
+.forensic-node.is-in-trail {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  background-color: #F8FAFC;
+  z-index: 8;
+}
+
+.forensic-node.is-matched {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35);
+  background-color: #FAFCFF;
+}
+
+.forensic-node.is-dimmed {
+  opacity: 0.16;
+  filter: grayscale(85%);
+  pointer-events: auto;
+}
+
+.forensic-node.is-reference {
+  border-style: dashed;
+  border-left-style: solid;
+  border-color: #D97706;
+  background-color: #FFFDFB;
+}
+
+.forensic-node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
+.forensic-node-type {
+  display: flex;
+  align-items: center;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+.forensic-node-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
+  line-height: 1;
+}
+
+.tag-reference {
+  background-color: #FEF3C7;
+  color: #B45309;
+  border: 1px solid #FDE68A;
+}
+
+.forensic-node-value {
+  font-size: 11px;
+  color: #0F172A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+/* Hidden handles with small dots */
+.forensic-handle {
+  width: 6px !important;
+  height: 6px !important;
+  background-color: #94A3B8 !important;
+  border: 1px solid #FFFFFF !important;
+}
+
+/* React Flow v12 SVG Edge Rendering Fixes */
+.react-flow__edges,
+svg.react-flow__edges {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: visible !important;
+  pointer-events: none;
+}
+
+.react-flow__viewport {
+  overflow: visible !important;
+}
+
+.react-flow__edge {
+  overflow: visible !important;
+  pointer-events: visibleStroke !important;
+  cursor: pointer;
+}
+
+.react-flow__edge-path {
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* React Flow Overrides for SOC look */
+.react-flow__attribution {
+  display: none !important;
+}
+
+.react-flow__controls {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid #CBD5E1 !important;
+  border-radius: 4px !important;
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background-color: #FFFFFF !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+  color: #334155 !important;
+}
+
+.react-flow__controls-button:hover {
+  background-color: #F8FAFC !important;
+}
+
+.react-flow__minimap {
+  background-color: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Side Details Panel */
+.graph-details-panel {
+  position: absolute;
+  top: 48px;
+  right: 12px;
+  bottom: 12px;
+  width: 340px;
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+  animation: slideInRight 0.15s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.graph-details-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #E2E8F0;
+  background-color: #F8FAFC;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.graph-details-title-group {
+  overflow: hidden;
+}
+
+.graph-details-badge {
+  display: inline-block;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-bottom: 2px;
+}
+
+.badge-node {
+  color: #2563EB;
+  background-color: #EFF6FF;
+  border: 1px solid #BFDBFE;
+}
+
+.badge-edge {
+  color: #334155;
+  background-color: #F1F5F9;
+  border: 1px solid #CBD5E1;
+}
+
+.badge-resembles {
+  color: #9A3412;
+  background-color: #FEF3C7;
+  border: 1px solid #F59E0B;
+}
+
+.graph-details-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0F172A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+
+.graph-details-close-btn {
+  background: none;
+  border: none;
+  color: #64748B;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.graph-details-close-btn:hover {
+  background-color: #E2E8F0;
+  color: #0F172A;
+}
+
+.graph-details-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.graph-details-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.graph-details-field-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.graph-details-copyable-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+}
+
+.graph-details-copyable-box span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 6px;
+}
+
+.graph-copy-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.graph-copy-btn:hover {
+  color: #0F172A;
+  background-color: #E2E8F0;
+}
+
+.copy-success {
+  color: #10B981 !important;
+}
+
+.graph-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.graph-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  background-color: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  color: #334155;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.tag-trust {
+  background-color: #ECFDF5;
+  border-color: #A7F3D0;
+  color: #065F46;
+  font-weight: 600;
+}
+
+.graph-lookalike-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background-color: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-radius: 4px;
+  padding: 8px 10px;
+}
+
+.lookalike-alert-icon {
+  color: #D97706;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.lookalike-alert-text strong {
+  display: block;
+  font-size: 11px;
+  color: #92400E;
+}
+
+.lookalike-alert-text p {
+  margin: 2px 0 0 0;
+  font-size: 10px;
+  color: #B45309;
+  line-height: 1.35;
+}
+
+.graph-evidence-card {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 6px;
+}
+
+.graph-evidence-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.graph-evidence-id {
+  font-size: 9.5px;
+  color: #2563EB;
+  font-weight: 600;
+}
+
+.graph-evidence-rule {
+  font-size: 8.5px;
+  color: #64748B;
+  background-color: #FFFFFF;
+  padding: 1px 4px;
+  border: 1px solid #CBD5E1;
+  border-radius: 2px;
+}
+
+.graph-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.graph-metric-cell {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 3px;
+  padding: 3px 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.graph-metric-label {
+  font-size: 8px;
+  font-weight: 700;
+  color: #64748B;
+  letter-spacing: 0.3px;
+}
+
+.graph-metric-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0F172A;
+  display: flex;
+  align-items: center;
+}
+
+.highlight-metric {
+  color: #D97706;
+  font-weight: 700;
+}
+
+.graph-evidence-desc {
+  margin: 4px 0 0 0;
+  font-size: 10px;
+  color: #475569;
+  line-height: 1.35;
+}
+
+.graph-attributes-table {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
+  padding: 6px;
+}
+
+.graph-attribute-row {
+  display: flex;
+  gap: 6px;
+  line-height: 1.4;
+}
+
+.graph-attr-key {
+  color: #64748B;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.graph-attr-val {
+  color: #0F172A;
+  word-break: break-all;
+}
+
+.graph-conn-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 3px 0;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.graph-conn-type {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #2563EB;
+}
+
+.graph-conn-target {
+  background: none;
+  border: none;
+  color: #334155;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: #CBD5E1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-conn-target:hover {
+  color: #2563EB;
+  text-decoration-color: #2563EB;
+}

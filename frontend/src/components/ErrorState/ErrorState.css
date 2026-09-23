@@ -1,0 +1,39 @@
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 24px;
+  background-color: var(--threat-malicious-bg);
+  border: 1px solid var(--threat-malicious-border);
+  border-radius: var(--radius-md);
+  margin: var(--space-4) 0;
+}
+
+.error-state-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: rgba(220, 38, 38, 0.15);
+  color: var(--threat-malicious-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-3);
+}
+
+.error-state-title {
+  font-size: var(--text-md);
+  font-weight: var(--font-semibold);
+  color: var(--threat-malicious-text);
+  margin-bottom: var(--space-1);
+}
+
+.error-state-msg {
+  font-size: var(--text-sm);
+  color: #7F1D1D;
+  max-width: 440px;
+  margin-bottom: var(--space-4);
+  line-height: 1.4;
+}

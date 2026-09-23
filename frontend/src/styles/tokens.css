@@ -1,0 +1,120 @@
+/**
+ * SIH26106 Design System Tokens
+ * Professional Cybersecurity / Forensic Station Theme (Light Mode)
+ */
+
+:root {
+  /* Surface & Background */
+  --bg-canvas: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-subtle: #F1F5F9;
+  --bg-surface-hover: #F8FAFC;
+  --bg-surface-active: #E2E8F0;
+
+  /* Primary Typography (Deep Navy & Slate) */
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+  --text-dim: #94A3B8;
+  --text-inverse: #FFFFFF;
+
+  /* Primary Action (Blue) */
+  --action-primary: #2563EB;
+  --action-primary-hover: #1D4ED8;
+  --action-primary-active: #1E40AF;
+  --action-primary-subtle: #EFF6FF;
+  --action-primary-border: #BFDBFE;
+
+  /* Accent (Orange) */
+  --accent-orange: #F97316;
+  --accent-orange-hover: #EA580C;
+  --accent-orange-subtle: #FFF7ED;
+  --accent-orange-border: #FED7AA;
+
+  /* Borders & Dividers */
+  --border-subtle: #E2E8F0;
+  --border-default: #CBD5E1;
+  --border-strong: #94A3B8;
+  --border-focus: #2563EB;
+
+  /* Threat Semantics */
+  --threat-benign: #16A34A;
+  --threat-benign-bg: #DCFCE7;
+  --threat-benign-border: #BBF7D0;
+  --threat-benign-text: #15803D;
+
+  --threat-suspicious: #D97706;
+  --threat-suspicious-bg: #FEF3C7;
+  --threat-suspicious-border: #FDE68A;
+  --threat-suspicious-text: #B45309;
+
+  --threat-malicious: #DC2626;
+  --threat-malicious-bg: #FEE2E2;
+  --threat-malicious-border: #FECACA;
+  --threat-malicious-text: #B91C1C;
+
+  --threat-neutral: #475569;
+  --threat-neutral-bg: #F1F5F9;
+  --threat-neutral-border: #E2E8F0;
+  --threat-neutral-text: #334155;
+
+  /* Status Colors */
+  --status-running: #2563EB;
+  --status-running-bg: #EFF6FF;
+  --status-completed: #16A34A;
+  --status-completed-bg: #DCFCE7;
+  --status-pending: #64748B;
+  --status-pending-bg: #F1F5F9;
+  --status-failed: #DC2626;
+  --status-failed-bg: #FEE2E2;
+
+  /* Typography Sizes & Families */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, "Courier New", monospace;
+
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.8125rem;  /* 13px */
+  --text-base: 0.875rem;  /* 14px */
+  --text-md: 0.9375rem;   /* 15px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+  --text-3xl: 1.75rem;    /* 28px */
+
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* Spacing */
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.25rem;  /* 20px */
+  --space-6: 1.5rem;   /* 24px */
+  --space-8: 2rem;     /* 32px */
+  --space-10: 2.5rem;  /* 40px */
+
+  /* Border Radii (Crisp, moderate) */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Subtle, crisp shadows (thin elevation) */
+  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --shadow-panel: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  --shadow-modal: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
+
+  /* Layout dimensions */
+  --header-height: 56px;
+  --sidebar-width: 240px;
+
+  /* Z-Index */
+  --z-header: 40;
+  --z-sidebar: 30;
+  --z-modal-backdrop: 50;
+  --z-modal: 60;
+  --z-tooltip: 70;
+}
