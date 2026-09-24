@@ -79,3 +79,4 @@ data/forensics_cases.db
 backend/storage/
 storage/
 
+.vercel
