@@ -55,24 +55,53 @@ class PipelineRunner:
         return self.ml_predictor
 
     def run_pipeline(
-        self, email_path: Path | str, case_id: Optional[str] = None
+        self, email_path: Path | str | bytes, case_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Convenience method delegating to run_investigation."""
-        str_path = str(email_path)
-        effective_case_id = case_id or Path(str_path).stem
+        effective_case_id = case_id
+        if not effective_case_id:
+            if isinstance(email_path, Path):
+                effective_case_id = email_path.stem
+            elif isinstance(email_path, str) and "\n" not in email_path and "\r" not in email_path and len(email_path) < 255:
+                try:
+                    effective_case_id = Path(email_path).stem
+                except (OSError, ValueError):
+                    effective_case_id = "case_analysis"
+            else:
+                effective_case_id = "case_analysis"
+
         return self.run_investigation(
             case_id=effective_case_id,
-            email_path=str_path,
+            email_path=email_path,
         )
 
     def run_investigation(
-        self, case_id: str, email_path: str
+        self, case_id: str, email_path: Path | str | bytes
     ) -> Dict[str, Any]:
         """Execute full Modules 1-6 + ML + Enrichment pipeline on email."""
-        with open(email_path, "rb") as f:
-            raw_bytes = f.read()
+        if isinstance(email_path, bytes):
+            raw_bytes = email_path
+            raw_text = raw_bytes.decode("utf-8", errors="replace")
+        elif isinstance(email_path, Path):
+            raw_bytes = email_path.read_bytes()
+            raw_text = raw_bytes.decode("utf-8", errors="replace")
+        elif isinstance(email_path, str):
+            is_file = False
+            if "\n" not in email_path and "\r" not in email_path and len(email_path) < 1024:
+                try:
+                    p = Path(email_path)
+                    if p.is_file():
+                        raw_bytes = p.read_bytes()
+                        raw_text = raw_bytes.decode("utf-8", errors="replace")
+                        is_file = True
+                except (OSError, ValueError):
+                    is_file = False
 
-        raw_text = raw_bytes.decode("utf-8", errors="replace")
+            if not is_file:
+                raw_text = email_path
+                raw_bytes = email_path.encode("utf-8", errors="surrogateescape")
+        else:
+            raise TypeError(f"Unsupported email_path type: {type(email_path)}")
 
         # 1. Module 1: Sender Identity
         m1 = analyze_eml(raw_text, email_id=case_id)

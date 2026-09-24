@@ -37,28 +37,60 @@ class AnalysisService:
         if not case:
             raise KeyError(f"Case '{case_id}' not found.")
 
-        # 2. Validate email file presence
+        # 2. Validate and retrieve email content / file safely
+        raw_eml_content = case.get("raw_eml_content")
         file_path_str = case.get("file_path")
-        if not file_path_str:
+
+        if not raw_eml_content and not file_path_str:
             raise ValueError(
                 f"Case '{case_id}' has no email file uploaded. "
                 "Upload a .eml file before triggering analysis."
             )
 
-        eml_path = Path(file_path_str)
-        if not eml_path.is_file():
-            # Check if raw_eml_content exists in DB to restore on disk
-            raw_b64 = case.get("raw_eml_content")
-            if raw_b64:
+        # Retrieve raw email bytes directly in memory
+        raw_bytes: Optional[bytes] = None
+        if raw_eml_content:
+            try:
                 import base64
-                eml_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(eml_path, "wb") as f:
-                    f.write(base64.b64decode(raw_b64))
+                raw_bytes = base64.b64decode(raw_eml_content)
+            except Exception:
+                raw_bytes = raw_eml_content.encode("utf-8", errors="surrogateescape")
+
+        eml_file_path: Optional[Path] = None
+        if raw_bytes is None and file_path_str:
+            if "\n" in file_path_str or "\r" in file_path_str or len(file_path_str) > 1024:
+                raw_bytes = file_path_str.encode("utf-8", errors="surrogateescape")
             else:
-                raise ValueError(
-                    f"Preserved email file '{case.get('original_filename', 'artifact.eml')}' was lost during a server restart. "
-                    "Please click 'Replace Artifact (.eml)' to upload it and re-run."
-                )
+                try:
+                    p = Path(file_path_str)
+                    if p.is_file():
+                        raw_bytes = p.read_bytes()
+                        eml_file_path = p
+                except (OSError, ValueError):
+                    pass
+
+        if raw_bytes is None:
+            raise ValueError(
+                f"Preserved email file '{case.get('original_filename', 'artifact.eml')}' was lost during a server restart. "
+                "Please click 'Replace Artifact (.eml)' to upload it and re-run."
+            )
+
+        # Restore file on disk if missing and file_path_str is a valid path
+        if (
+            eml_file_path is None
+            and file_path_str
+            and "\n" not in file_path_str
+            and "\r" not in file_path_str
+            and len(file_path_str) < 1024
+        ):
+            try:
+                p = Path(file_path_str)
+                p.parent.mkdir(parents=True, exist_ok=True)
+                with open(p, "wb") as f:
+                    f.write(raw_bytes)
+                eml_file_path = p
+            except OSError:
+                pass
 
         # 3. Acquire atomic analysis lock
         # Raises ConcurrencyConflictError if already 'running'
@@ -67,7 +99,8 @@ class AnalysisService:
         try:
             logger.info("Starting forensic pipeline for case %s", case_id)
             analysis_results = self.runner.run_pipeline(
-                email_path=eml_path, case_id=case_id
+                email_path=eml_file_path if eml_file_path is not None else raw_bytes,
+                case_id=case_id,
             )
 
             # 5. Persist analysis results atomically

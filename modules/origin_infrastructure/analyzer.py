@@ -396,11 +396,18 @@ class OriginInfrastructureAnalyzer:
             return msg, raw_bytes, None
 
         if isinstance(email_input, str):
-            p = Path(email_input)
-            if p.is_file():
-                raw_bytes = p.read_bytes()
-                msg = message_from_bytes(raw_bytes, policy=policy.default)
-            else:
+            is_file = False
+            if "\n" not in email_input and "\r" not in email_input and len(email_input) < 1024:
+                try:
+                    p = Path(email_input)
+                    if p.is_file():
+                        raw_bytes = p.read_bytes()
+                        msg = message_from_bytes(raw_bytes, policy=policy.default)
+                        is_file = True
+                except (OSError, ValueError):
+                    is_file = False
+
+            if not is_file:
                 raw_bytes = email_input.encode("utf-8", errors="surrogateescape")
                 msg = message_from_string(email_input, policy=policy.default)
             return msg, raw_bytes, None
