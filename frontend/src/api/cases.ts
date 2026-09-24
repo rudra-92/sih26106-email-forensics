@@ -55,12 +55,12 @@ export function formatCaseError(error: unknown): string {
       return 'Validation error. Please verify input parameters.';
     }
 
-    if (status >= 500) {
-      return 'Investigation service encountered an internal error. Please try again.';
+    if (typeof data?.detail === 'string' && data.detail.trim().length > 0) {
+      return data.detail;
     }
 
-    if (typeof data?.detail === 'string') {
-      return data.detail;
+    if (status >= 500) {
+      return 'Investigation service encountered an internal error. Please try again.';
     }
   }
 
