@@ -14,14 +14,11 @@ export const SandeshNavbar: React.FC = () => {
   return (
     <header className="sandesh-nav">
       <div className="sandesh-nav-inner">
-        <div className="sandesh-brand" onClick={() => navigate('/')}>
-          <div className="sandesh-brand-icon">
-            <SandeshSetuLogo variant="icon" size={20} theme="dark" />
+        <div className="sandesh-nav-brand" onClick={() => navigate('/')} title="SandeshSetu Home">
+          <div className="sandesh-nav-brand-icon">
+            <SandeshSetuLogo variant="icon" size={17} theme="dark" />
           </div>
-          <div className="sandesh-brand-text">
-            <span className="sandesh-brand-title">SandeshSetu</span>
-            <span className="sandesh-brand-badge">EMAIL FORENSICS</span>
-          </div>
+          <span className="sandesh-nav-brand-text">SandeshSetu</span>
         </div>
 
         <nav className="sandesh-nav-links" aria-label="Main Navigation">
@@ -31,13 +28,6 @@ export const SandeshNavbar: React.FC = () => {
             onClick={() => navigate('/how-it-works')}
           >
             How It Works
-          </button>
-          <button
-            type="button"
-            className={`sandesh-nav-link ${location.pathname === '/investigation' ? 'active' : ''}`}
-            onClick={() => navigate('/investigation')}
-          >
-            Investigation
           </button>
           <button
             type="button"
@@ -58,7 +48,7 @@ export const SandeshNavbar: React.FC = () => {
         <div className="sandesh-nav-actions">
           <button
             type="button"
-            className="sandesh-btn sandesh-btn-nav"
+            className="sandesh-btn-nav"
             onClick={handleStartInvestigation}
           >
             Start Investigation
@@ -68,3 +58,5 @@ export const SandeshNavbar: React.FC = () => {
     </header>
   );
 };
+
+export default SandeshNavbar;

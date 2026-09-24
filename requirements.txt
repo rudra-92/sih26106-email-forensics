@@ -1,13 +1,19 @@
-# SIH26106 Email Forensics Platform - Runtime Dependencies
-# Offline-first local MMDB reader for Module 5 (Origin & Infrastructure Reconstruction)
-maxminddb==3.2.0
+# SIH26106 Email Forensics & Attribution Platform - Production Requirements
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.8.0
+python-multipart>=0.0.9
+requests>=2.31.0
 
-# Database Persistence (PostgreSQL + SQLAlchemy 2.x + Alembic)
+# Database Persistence (PostgreSQL + SQLite + SQLAlchemy + Alembic)
 SQLAlchemy>=2.0.0
 psycopg[binary]>=3.2.0
 alembic>=1.13.0
 
-# Authentication & Security (Argon2 + PyJWT + Dotenv)
+# Security & Authentication (Argon2 + PyJWT + Dotenv)
 PyJWT>=2.8.0
 argon2-cffi>=23.1.0
 python-dotenv>=1.0.0
+
+# Offline-first MMDB reader for Origin & Infrastructure Reconstruction
+maxminddb>=3.0.0
