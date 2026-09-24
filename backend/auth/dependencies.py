@@ -97,14 +97,27 @@ def get_current_user(
 
     if not user:
         # Auto-provision Supabase user in local DB to satisfy relational foreign keys
-        user = user_repo.create_user(
-            user_id=str(user_id),
-            email=email or f"{user_id}@supabase.local",
-            password_hash="supabase_auth_managed",
-            full_name=full_name,
-            role=role,
-            is_active=True,
-        )
+        try:
+            user = user_repo.create_user(
+                user_id=str(user_id),
+                email=email or f"{user_id}@supabase.local",
+                password_hash="supabase_auth_managed",
+                full_name=full_name,
+                role=role,
+                is_active=True,
+            )
+        except Exception:
+            db.rollback()
+            user = user_repo.get_user_by_id(str(user_id)) or (user_repo.get_user_by_email(email) if email else None)
+            if not user:
+                user = user_repo.create_user(
+                    user_id=str(user_id),
+                    email=f"{user_id}@supabase.local",
+                    password_hash="supabase_auth_managed",
+                    full_name=full_name,
+                    role=role,
+                    is_active=True,
+                )
     else:
         if not user.is_active:
             raise HTTPException(
