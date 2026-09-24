@@ -24,6 +24,7 @@ def create_db_engine(url: str):
         url = url.replace("postgresql://", "postgresql+psycopg://", 1)
     return create_engine(
         url,
+        connect_args={"connect_timeout": 10},
         pool_pre_ping=True,
         pool_size=10,
         max_overflow=20,

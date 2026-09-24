@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from ..repositories.case_repository import CaseRepository
-from .pipeline_runner import PipelineRunner
+if TYPE_CHECKING:
+    from .pipeline_runner import PipelineRunner
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,12 @@ class AnalysisService:
         runner: Optional[PipelineRunner] = None,
     ) -> None:
         self.repository = repository
-        self.runner = runner or PipelineRunner()
+        if runner is not None:
+            self.runner = runner
+        else:
+            from .pipeline_runner import PipelineRunner
+
+            self.runner = PipelineRunner()
 
     def run_case_analysis(self, case_id: str) -> Dict[str, Any]:
         """Execute forensic pipeline on preserved email and persist results.

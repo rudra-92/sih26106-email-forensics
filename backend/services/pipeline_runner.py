@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 import numpy as np
 
 from enrichment.infrastructure_intelligence import (
     run_infrastructure_intelligence,
 )
-from ml.inference.predict_fusion import FusionThreatPredictor
+if TYPE_CHECKING:
+    from ml.inference.predict_fusion import FusionThreatPredictor
 from modules.attachment_analysis import analyze_attachments
 from modules.evidence_correlation import correlate_evidence
 from modules.lookalike_domain import (
@@ -51,6 +52,8 @@ class PipelineRunner:
 
     def _get_predictor(self) -> FusionThreatPredictor:
         if self.ml_predictor is None:
+            from ml.inference.predict_fusion import FusionThreatPredictor
+
             self.ml_predictor = FusionThreatPredictor()
         return self.ml_predictor
 

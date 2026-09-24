@@ -80,9 +80,9 @@ app.include_router(cases_router)
 app.include_router(analysis_router)
 
 
-@app.on_event("startup")
-def startup_bootstrap() -> None:
-    """Optionally bootstrap initial admin from environment variables and ensure schema exists."""
+def _run_startup_bootstrap() -> None:
+    """Execute schema creation, migration, and admin user provisioning in background."""
+    logger.info("Starting background database bootstrap and schema check...")
     try:
         Base.metadata.create_all(bind=engine)
         # Ensure raw_eml_content column exists on existing databases
@@ -91,35 +91,52 @@ def startup_bootstrap() -> None:
             try:
                 conn.execute(text("ALTER TABLE cases ADD COLUMN raw_eml_content TEXT"))
                 conn.commit()
-            except Exception:
-                pass  # Column already exists
+            except Exception as alter_exc:
+                logger.debug("Column raw_eml_content check/alter skipped: %s", alter_exc)
+        logger.info("Database schema verification completed successfully.")
     except Exception as exc:
-        logger.warning("Database schema creation check failed: %s", exc)
+        logger.exception("Database schema creation/verification failed: %s", exc)
 
     if BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD:
-        db = SessionLocal()
         try:
-            repo = UserRepository(session=db)
-            existing = repo.get_user_by_email(BOOTSTRAP_ADMIN_EMAIL)
-            if not existing:
-                import uuid
-                pw_hash = hash_password(BOOTSTRAP_ADMIN_PASSWORD)
-                repo.create_user(
-                    user_id=str(uuid.uuid4()),
-                    email=BOOTSTRAP_ADMIN_EMAIL,
-                    password_hash=pw_hash,
-                    full_name=BOOTSTRAP_ADMIN_NAME,
-                    role="admin",
-                    is_active=True,
-                )
-                logger.info(
-                    "Bootstrapped initial admin user from environment: %s",
-                    BOOTSTRAP_ADMIN_EMAIL,
-                )
+            db = SessionLocal()
+            try:
+                repo = UserRepository(session=db)
+                existing = repo.get_user_by_email(BOOTSTRAP_ADMIN_EMAIL)
+                if not existing:
+                    import uuid
+                    pw_hash = hash_password(BOOTSTRAP_ADMIN_PASSWORD)
+                    repo.create_user(
+                        user_id=str(uuid.uuid4()),
+                        email=BOOTSTRAP_ADMIN_EMAIL,
+                        password_hash=pw_hash,
+                        full_name=BOOTSTRAP_ADMIN_NAME,
+                        role="admin",
+                        is_active=True,
+                    )
+                    logger.info(
+                        "Bootstrapped initial admin user from environment: %s",
+                        BOOTSTRAP_ADMIN_EMAIL,
+                    )
+                else:
+                    logger.debug("Initial admin user '%s' already exists.", BOOTSTRAP_ADMIN_EMAIL)
+            finally:
+                db.close()
         except Exception as exc:
-            logger.warning("Startup admin bootstrap skipped/failed: %s", exc)
-        finally:
-            db.close()
+            logger.exception("Startup admin bootstrap skipped/failed: %s", exc)
+
+
+@app.on_event("startup")
+def startup_bootstrap() -> None:
+    """Non-blocking startup hook spawning background thread so Uvicorn binds $PORT immediately."""
+    import threading
+
+    bootstrap_thread = threading.Thread(
+        target=_run_startup_bootstrap,
+        name="db-startup-bootstrap",
+        daemon=True,
+    )
+    bootstrap_thread.start()
 
 
 @app.exception_handler(ConcurrencyConflictError)
@@ -158,9 +175,18 @@ if FRONTEND_DIST.is_dir():
         app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="frontend_assets")
 
     @app.get("/{full_path:path}", include_in_schema=False)
-    async def serve_frontend_spa(full_path: str):
+    async def serve_frontend_spa(full_path: str, request: Request):
         if full_path.startswith(("api", "docs", "redoc", "health", "openapi.json")):
             return JSONResponse(status_code=404, content={"detail": "Not Found"})
+        if full_path == "":
+            accept = request.headers.get("accept", "")
+            if "text/html" not in accept:
+                return {
+                    "name": APP_TITLE,
+                    "status": "active",
+                    "docs_url": "/docs",
+                    "health_url": "/health",
+                }
         target_file = FRONTEND_DIST / full_path
         if target_file.is_file():
             return FileResponse(target_file)
