@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.117.0",
+    "@supabase/supabase-js": "^2.117.1",
     "@xyflow/react": "^12.11.6",
     "axios": "^1.20.0",
     "clsx": "^2.1.1",
