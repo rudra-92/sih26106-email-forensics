@@ -19,8 +19,12 @@ import type {
  */
 export function formatCaseError(error: unknown): string {
   if (axios.isAxiosError(error)) {
+    if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
+      return 'The investigation service is taking longer than usual to respond (the server may be waking up from sleep). Please retry in a few seconds.';
+    }
+
     if (!error.response) {
-      return 'Unable to reach the investigation service. Please verify network connectivity.';
+      return 'Unable to reach the investigation service. The cloud server may be starting up or network connectivity was lost. Please retry.';
     }
 
     const { status, data } = error.response;
@@ -59,8 +63,20 @@ export function formatCaseError(error: unknown): string {
       return data.detail;
     }
 
+    if (typeof data?.message === 'string' && data.message.trim().length > 0) {
+      return data.message;
+    }
+
+    if (typeof data === 'string' && data.trim().length > 0 && !data.includes('<!DOCTYPE') && !data.includes('<html')) {
+      return data;
+    }
+
+    if (status === 502 || status === 503 || status === 504) {
+      return 'The backend service is currently waking up on Render (~30–45s). Please wait a few seconds and try again.';
+    }
+
     if (status >= 500) {
-      return 'Investigation service encountered an internal error. Please try again.';
+      return 'The investigation service encountered a temporary server error. Please try again in a few moments.';
     }
   }
 
