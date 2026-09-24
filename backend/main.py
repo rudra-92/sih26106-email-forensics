@@ -73,6 +73,14 @@ def startup_bootstrap() -> None:
     """Optionally bootstrap initial admin from environment variables and ensure schema exists."""
     try:
         Base.metadata.create_all(bind=engine)
+        # Ensure raw_eml_content column exists on existing databases
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE cases ADD COLUMN raw_eml_content TEXT"))
+                conn.commit()
+            except Exception:
+                pass  # Column already exists
     except Exception as exc:
         logger.warning("Database schema creation check failed: %s", exc)
 

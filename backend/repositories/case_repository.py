@@ -60,6 +60,7 @@ class CaseRepository:
             "file_sha256": case.file_sha256,
             "file_path": case.file_path,
             "file_size_bytes": case.file_size_bytes,
+            "raw_eml_content": case.raw_eml_content,
             "analysis_status": case.analysis_status,
             "threat_label": case.threat_label,
             "threat_confidence": case.threat_confidence,
@@ -123,6 +124,7 @@ class CaseRepository:
         file_sha256: str,
         file_path: str,
         file_size_bytes: int,
+        raw_eml_content: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Associate preserved .eml file metadata with a case."""
         stmt = select(Case).where(Case.case_id == case_id)
@@ -135,6 +137,8 @@ class CaseRepository:
         case.file_sha256 = file_sha256
         case.file_path = file_path
         case.file_size_bytes = file_size_bytes
+        if raw_eml_content is not None:
+            case.raw_eml_content = raw_eml_content
         case.updated_at = now_ts
         self.session.commit()
         self.session.refresh(case)

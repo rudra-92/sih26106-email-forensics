@@ -93,6 +93,8 @@ class CaseService:
 
         # 5. Calculate SHA-256 on exact original bytes (immutable preservation)
         sha256_hash = hashlib.sha256(content_bytes).hexdigest()
+        import base64
+        b64_content = base64.b64encode(content_bytes).decode("ascii")
 
         # 6. Save original bytes to case directory
         case_storage_dir = self.storage_dir / case_id
@@ -110,6 +112,7 @@ class CaseService:
             file_sha256=sha256_hash,
             file_path=str(stored_path.resolve()),
             file_size_bytes=file_size,
+            raw_eml_content=b64_content,
         )
 
         return {

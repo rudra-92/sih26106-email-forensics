@@ -73,6 +73,9 @@ class Case(Base):
     file_size_bytes: Mapped[Optional[int]] = mapped_column(
         Integer, nullable=True
     )
+    raw_eml_content: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )
     analysis_status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="pending", index=True
     )

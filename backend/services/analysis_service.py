@@ -47,9 +47,18 @@ class AnalysisService:
 
         eml_path = Path(file_path_str)
         if not eml_path.is_file():
-            raise ValueError(
-                f"Preserved email file '{file_path_str}' is missing on disk."
-            )
+            # Check if raw_eml_content exists in DB to restore on disk
+            raw_b64 = case.get("raw_eml_content")
+            if raw_b64:
+                import base64
+                eml_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(eml_path, "wb") as f:
+                    f.write(base64.b64decode(raw_b64))
+            else:
+                raise ValueError(
+                    f"Preserved email file '{case.get('original_filename', 'artifact.eml')}' was lost during a server restart. "
+                    "Please click 'Replace Artifact (.eml)' to upload it and re-run."
+                )
 
         # 3. Acquire atomic analysis lock
         # Raises ConcurrencyConflictError if already 'running'
