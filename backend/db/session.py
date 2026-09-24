@@ -18,6 +18,10 @@ def create_db_engine(url: str):
             connect_args={"check_same_thread": False},
             echo=False,
         )
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+psycopg://", 1)
+    elif url.startswith("postgresql://") and "+psycopg" not in url:
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
     return create_engine(
         url,
         pool_pre_ping=True,

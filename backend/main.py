@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+import os
+import sys
+from pathlib import Path
+
+# Ensure root workspace directory is in python sys.path for production deployment
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 import logging
 from typing import Any, Dict
 from fastapi import FastAPI, Request, status

@@ -1,4 +1,5 @@
 # SIH26106 Email Forensics & Attribution Platform - Production Requirements
+# Core Framework & Web Server
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.8.0
@@ -17,3 +18,11 @@ python-dotenv>=1.0.0
 
 # Offline-first MMDB reader for Origin & Infrastructure Reconstruction
 maxminddb>=3.0.0
+
+# ML & Forensic Analysis Engine Dependencies
+numpy>=1.26.0
+pandas>=2.2.0
+scikit-learn>=1.4.0
+joblib>=1.3.0
+xgboost>=2.0.0
+shap>=0.44.0
