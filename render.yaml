@@ -2,18 +2,22 @@ services:
   - type: web
     name: sandeshsetu-api
     runtime: python
-    buildCommand: cd frontend && npm install && npm run build && cd .. && pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: PYTHONPATH=. uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-10000}
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
-      - key: DATABASE_URL
-        value: sqlite:///./sih26106.db
-      - key: SUPABASE_URL
-        value: https://xbaulrosqdphmuedhoyk.supabase.co
-      - key: SUPABASE_ANON_KEY
-        value: sb_publishable_aIM4zAeG2O2xM5_MINImkQ_QEryfxmc
-      - key: JWT_SECRET_KEY
-        generateValue: true
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "1440"
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
