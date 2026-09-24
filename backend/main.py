@@ -134,12 +134,35 @@ def health_check() -> Dict[str, Any]:
     }
 
 
-@app.get("/", tags=["System"])
-def root() -> Dict[str, Any]:
-    """Root endpoint with service overview and link to documentation."""
-    return {
-        "name": APP_TITLE,
-        "status": "active",
-        "docs_url": "/docs",
-        "health_url": "/health",
-    }
+from fastapi.responses import FileResponse
+
+FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
+
+if FRONTEND_DIST.is_dir():
+    from fastapi.staticfiles import StaticFiles
+
+    assets_dir = FRONTEND_DIST / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="frontend_assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_frontend_spa(full_path: str):
+        if full_path.startswith(("api", "docs", "redoc", "health", "openapi.json")):
+            return JSONResponse(status_code=404, content={"detail": "Not Found"})
+        target_file = FRONTEND_DIST / full_path
+        if target_file.is_file():
+            return FileResponse(target_file)
+        index_html = FRONTEND_DIST / "index.html"
+        if index_html.is_file():
+            return FileResponse(index_html)
+        return JSONResponse(status_code=404, content={"detail": "Frontend not built"})
+else:
+    @app.get("/", tags=["System"])
+    def root() -> Dict[str, Any]:
+        """Root endpoint with service overview and link to documentation."""
+        return {
+            "name": APP_TITLE,
+            "status": "active",
+            "docs_url": "/docs",
+            "health_url": "/health",
+        }
