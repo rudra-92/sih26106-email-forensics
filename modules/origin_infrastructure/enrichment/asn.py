@@ -43,9 +43,16 @@ class LocalASNProvider(BaseASNProvider):
     ) -> None:
         raw_path = db_path or os.environ.get("GEOIP_ASN_DB") or os.environ.get("SIH_ASN_DB_PATH")
         if not raw_path:
-            default_asn_mmdb = Path("data/geoip/dbip-asn-lite.mmdb")
-            if default_asn_mmdb.is_file():
-                raw_path = str(default_asn_mmdb)
+            # 1. Check relative to current working directory
+            cwd_cand = Path("data/geoip/dbip-asn-lite.mmdb")
+            if cwd_cand.is_file():
+                raw_path = str(cwd_cand)
+            else:
+                # 2. Check repository root relative to __file__
+                repo_root = Path(__file__).resolve().parents[3]
+                repo_cand = repo_root / "data" / "geoip" / "dbip-asn-lite.mmdb"
+                if repo_cand.is_file():
+                    raw_path = str(repo_cand)
 
         self.db_path = str(raw_path) if raw_path else None
         self._custom_lookup = custom_lookup  # Explicit test fixtures only

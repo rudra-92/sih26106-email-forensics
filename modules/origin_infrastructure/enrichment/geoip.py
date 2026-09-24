@@ -51,9 +51,16 @@ class LocalGeoIPProvider(BaseGeoIPProvider):
             or os.environ.get("SIH_GEOIP_DB_PATH")
         )
         if not raw_path:
-            default_mmdb = Path("data/geoip/dbip-city-lite.mmdb")
-            if default_mmdb.is_file():
-                raw_path = str(default_mmdb)
+            # 1. Check relative to current working directory
+            cwd_cand = Path("data/geoip/dbip-city-lite.mmdb")
+            if cwd_cand.is_file():
+                raw_path = str(cwd_cand)
+            else:
+                # 2. Check repository root relative to __file__
+                repo_root = Path(__file__).resolve().parents[3]
+                repo_cand = repo_root / "data" / "geoip" / "dbip-city-lite.mmdb"
+                if repo_cand.is_file():
+                    raw_path = str(repo_cand)
 
         self.db_path = str(raw_path) if raw_path else None
         self._custom_lookup = custom_lookup  # Explicit test fixtures only

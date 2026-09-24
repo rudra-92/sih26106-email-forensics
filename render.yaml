@@ -2,7 +2,7 @@ services:
   - type: web
     name: sandeshsetu-api
     runtime: python
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt && python scripts/setup_geoip.py --skip-tor
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
